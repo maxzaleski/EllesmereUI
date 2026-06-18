@@ -36,10 +36,10 @@ ns.LVL_MARKER = 22   -- raid marker icon (always on top)
 
 -- TODO: remove old scale.
 ns.STRATA_SCALE = {
-    lowest  = 7,  -- base level for name/health text
-    low     = 8,  -- base level for indicators (except Raid Markers at "highest")
-    medium  = 13, -- base level for every aura icon/bar
-    high    = 20, -- main border while hovered/targeted (PP container at +1)
+    lowest  = 12,  -- offset level for name/health text
+    low     = 13,  -- offset level for indicators (except Raid Markers at "highest")
+    medium  = 14, -- offset level for every aura icon/bar
+    high    = 20, -- offset level for main border while hovered/targeted (PP container at +1)
     highest = 22, -- highest priority, sits above main frame border
 }
 
@@ -2221,20 +2221,26 @@ local function StyleButton(button)
 
     -- Text carrier: name + health text sit ABOVE the base/threat/dispel borders
     -- (+8/+10/+11) and the BM frame-border effect (+11) so they stay readable,
-    -- but BELOW the aura layer (ns.LVL_AURA = +13) so debuffs/buffs draw over them.
+    -- but BELOW the indicator (+13) and the aura (+14) layers, as to allow these to
+    -- draw over them (assuming the user does not manually override these).
+
     local textCarrier = CreateFrame("Frame", nil, button)
     textCarrier:SetAllPoints(health)
-    textCarrier:SetFrameLevel(button:GetFrameLevel() + 12)
+
+    local nameTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    d.nameTextCarrier = nameTextCarrier
+    local healthTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    d.healthTextCarrier = healthTextCarrier
 
     -- Name text
-    local nameFS = textCarrier:CreateFontString(nil, "OVERLAY")
+    local nameFS = nameTextCarrier:CreateFontString(nil, "OVERLAY")
     ApplyFont(nameFS, s.nameSize or 10)
     nameFS:SetJustifyH("CENTER")
     nameFS:SetWordWrap(false)
     d.nameText = nameFS
 
     -- Health deficit text
-    local healthFS = textCarrier:CreateFontString(nil, "OVERLAY")
+    local healthFS = healthTextCarrier:CreateFontString(nil, "OVERLAY")
     ApplyFont(healthFS, s.healthTextSize or 9)
     healthFS:SetTextColor(1, 1, 1, 0.9)
     d.healthText = healthFS
@@ -2282,7 +2288,10 @@ local function StyleButton(button)
     d.AnchorHealthText = AnchorHealthText
 
     -- Status text (DEAD / OFFLINE / AFK -- always shown, own position/size/color)
-    local statusFS = health:CreateFontString(nil, "OVERLAY")
+    local statusTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    d.statusTextCarrier = statusTextCarrier
+
+    local statusFS = statusTextCarrier:CreateFontString(nil, "OVERLAY")
     local stc = s.statusTextColor or { r = 1, g = 1, b = 1 }
     ApplyFont(statusFS, s.statusTextSize or 14)
     statusFS:SetJustifyH("CENTER")
@@ -2317,6 +2326,15 @@ local function StyleButton(button)
     end
     AnchorStatusText()
     d.AnchorStatusText = AnchorStatusText
+
+    local function UpdateTextCarriersLevel()
+        local pl = button:GetFrameLevel()
+        nameTextCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.nameLevel])
+        healthTextCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.healthTextLevel])
+        statusTextCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.statusTextLevel])
+    end
+    UpdateTextCarriersLevel()
+    d.UpdateTextCarriersLevel = UpdateTextCarriersLevel
 
     -- Role icon (carrier frame above power bar + its border so icon renders on top)
     local roleCarrier = CreateFrame("Frame", nil, button)
@@ -6729,6 +6747,7 @@ local function ReloadFrames()
             d.statusText:SetTextColor(stc.r, stc.g, stc.b)
             if d.AnchorStatusText then d.AnchorStatusText() end
         end
+        if d.UpdateTextCarriersLevel then d.UpdateTextCarriersLevel() end
 
         -- Role icon size + position
         if d.roleIcon then
@@ -8662,6 +8681,7 @@ ns.ReloadPartyFrames = function()
             d.statusText:SetTextColor(stc.r, stc.g, stc.b)
             if d.AnchorStatusText then d.AnchorStatusText() end
         end
+        if d.UpdateTextCarriersLevel then d.UpdateTextCarriersLevel() end
 
         -- Role icon
         if d.roleIcon then
@@ -10115,27 +10135,42 @@ local function CreatePreviewFrame(index)
     readyCheck:SetPoint("CENTER", health, "CENTER", 0, 0)
     readyCheck:Hide()
 
-    -- Text carrier: above borders (+8/+10/+11), below the aura layer (+13).
+    -- Text carrier: name + health text sit ABOVE the base/threat/dispel borders
+    -- (+8/+10/+11) and the BM frame-border effect (+11) so they stay readable,
+    -- but BELOW the indicator (+13) and the aura (+14) layers, as to allow these to
+    -- draw over them (assuming the user does not manually override these).
+
     local textCarrier = CreateFrame("Frame", nil, f)
     textCarrier:SetAllPoints(health)
-    textCarrier:SetFrameLevel(f:GetFrameLevel() + 12)
 
-    -- Name text (anchoring done by ApplyPreviewData on every refresh)
-    local nameFS = textCarrier:CreateFontString(nil, "OVERLAY")
+    local nameTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    nameTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.nameLevel])
+    f._nameTextCarrier = nameTextCarrier
+
+    local healthTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    healthTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.healthTextLevel])
+    f._healthTextCarrier = healthTextCarrier
+
+    -- Name text
+    local nameFS = nameTextCarrier:CreateFontString(nil, "OVERLAY")
     ApplyFont(nameFS, s.nameSize or 10)
     nameFS:SetJustifyH("CENTER")
     nameFS:SetWordWrap(false)
     nameFS:SetPoint("CENTER", health, "CENTER", 0, 0)
 
-    -- Health text
-    local healthFS = textCarrier:CreateFontString(nil, "OVERLAY")
+    -- Health deficit text
+    local healthFS = healthTextCarrier:CreateFontString(nil, "OVERLAY")
     ApplyFont(healthFS, s.healthTextSize or 9)
     healthFS:SetJustifyH("CENTER")
     healthFS:SetPoint("CENTER", health, "CENTER", 0, 0)
     healthFS:SetTextColor(1, 1, 1, 0.9)
 
+    local statusTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    statusTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.statusTextLevel])
+    f._statusTextCarrier = statusTextCarrier
+
     -- Status text (DEAD / OFFLINE / AFK)
-    local statusFS = textCarrier:CreateFontString(nil, "OVERLAY")
+    local statusFS = statusTextCarrier:CreateFontString(nil, "OVERLAY")
     local pvStc = s.statusTextColor or { r = 1, g = 1, b = 1 }
     ApplyFont(statusFS, s.statusTextSize or 14)
     statusFS:SetJustifyH("CENTER")
@@ -11318,7 +11353,6 @@ local function ApplyPreviewData(f, index)
             f._healthText:SetText("")
         end
     end
-
     -- Status text (DEAD / OFFLINE / AFK)
     if f._statusText then
         local pvStc = s.statusTextColor or { r = 1, g = 1, b = 1 }
@@ -11360,6 +11394,10 @@ local function ApplyPreviewData(f, index)
             f._statusText:Hide()
         end
     end
+    local fpl = f:GetFrameLevel()
+    if f._nameTextCarrier   then f._nameTextCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.nameLevel])         end
+    if f._healthTextCarrier then f._healthTextCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.healthTextLevel]) end
+    if f._statusTextCarrier then f._statusTextCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.statusTextLevel]) end
 
     -- Dead/DC overlay (mirror the live-frame status tint: full-cover bg)
     if isDead then
