@@ -1741,7 +1741,7 @@ initFrame:SetScript("OnEvent", function(self)
                 function() end, "accent", false, "Accent Color")
         end
 
-        -- Row 3: Health Text Position (+ cog for X/Y) | HealthText Size
+        -- Row 3: Health Text Position (+ cog for X/Y) | Health Text Size
         row, h = W:DualRow(parent, y,
             { type="dropdown", text="Health Text Position", values=namePositionValues, order=namePositionOrder,
               disabled=function() return SVal("healthTextMode", "none") == "none" end,
@@ -1869,7 +1869,7 @@ initFrame:SetScript("OnEvent", function(self)
         -- Row 1: Role Icon Style | Role Icon Size
         local ROLE_MEDIA = "Interface\\AddOns\\EllesmereUIRaidFrames\\Media\\"
         local RI_STYLES = {
-            modern = { _isTexture = true, TANK = ROLE_MEDIA .. "tank-modern.png", HEALER = ROLE_MEDIA .. "healer-modern.png", DAMAGER = ROLE_MEDIA .. "dpssymotion-linemarks)-modern.png" },
+            modern = { _isTexture = true, TANK = ROLE_MEDIA .. "tank-modern.png", HEALER = ROLE_MEDIA .. "healer-modern.png", DAMAGER = ROLE_MEDIA .. "dps-modern.png" },
             modernCircle = { TANK = "UI-LFG-RoleIcon-Tank", HEALER = "UI-LFG-RoleIcon-Healer", DAMAGER = "UI-LFG-RoleIcon-DPS" },
             styled = { TANK = "UI-LFG-RoleIcon-Tank-Background", HEALER = "UI-LFG-RoleIcon-Healer-Background", DAMAGER = "UI-LFG-RoleIcon-DPS-Background" },
             classicCircle = { TANK = "UI-LFG-RoleIcon-Tank-Micro-GroupFinder", HEALER = "UI-LFG-RoleIcon-Healer-Micro-GroupFinder", DAMAGER = "UI-LFG-RoleIcon-DPS-Micro-GroupFinder" },

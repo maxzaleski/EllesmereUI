@@ -2487,6 +2487,7 @@ local function StyleButton(button)
         local dbDurCarrier = CreateFrame("Frame", nil, icon)
         dbDurCarrier:SetAllPoints()
         dbDurCarrier:SetFrameLevel(dbTextLevel)
+        icon._durCarrier = dbDurCarrier
 
         -- Stack count text
         local dbCountFS = dbDurCarrier:CreateFontString(nil, "OVERLAY")
@@ -2635,6 +2636,7 @@ local function StyleButton(button)
         local defDurCarrier = CreateFrame("Frame", nil, defIcon)
         defDurCarrier:SetAllPoints()
         defDurCarrier:SetFrameLevel(defCD:GetFrameLevel() + 2)
+        defIcon._durCarrier = defDurCarrier
         local defDurFontPath = (EllesmereUI.GetFontPath and EllesmereUI.GetFontPath("raidFrames")) or "Fonts\\FRIZQT__.TTF"
         local defDurFS = defDurCarrier:CreateFontString(nil, "OVERLAY")
         defDurFS:SetPoint("CENTER", defIcon, "CENTER", 0, 0)
@@ -2703,6 +2705,37 @@ local function StyleButton(button)
     end
     AnchorDefensives()
     d.AnchorDefensives = AnchorDefensives
+
+    local function UpdateAuraLevels()
+        local pl = button:GetFrameLevel()
+        local debuffOff = ns.STRATA_SCALE[s.debuffLevel]
+        local defOff    = ns.STRATA_SCALE[s.defLevel]
+        local paOff     = ns.STRATA_SCALE[s.paLevel]
+
+        for _, icon in ipairs(d.debuffIcons) do
+            icon:SetFrameLevel(pl + debuffOff)
+            if icon._borderFrame then icon._borderFrame:SetFrameLevel(pl + debuffOff + 1) end
+            if icon._durCarrier  then icon._durCarrier:SetFrameLevel(pl + debuffOff + 2) end
+        end
+
+        for _, icon in ipairs(d.defIcons) do
+            icon:SetFrameLevel(pl + defOff)
+            if icon._borderFrame then icon._borderFrame:SetFrameLevel(pl + defOff + 1) end
+            if icon._durCarrier  then icon._durCarrier:SetFrameLevel(pl + defOff + 2) end
+        end
+
+        if d.privateAuraFrames then
+            for _, paFrame in ipairs(d.privateAuraFrames) do
+                paFrame:SetFrameLevel(pl + paOff)
+            end
+        end
+
+        if d.dispelContainer then
+            d.dispelContainer:SetFrameLevel(pl + paOff)
+        end
+    end
+    UpdateAuraLevels()
+    d.UpdateAuraLevels = UpdateAuraLevels
 
     -- Anchor name text based on position setting
     -- Uses two-point anchoring (LEFT+RIGHT) for width constraint, with
@@ -4129,7 +4162,7 @@ local function RegisterPrivateAuraSlots(button, unit)
         paFrame:SetScale(ts)
         paFrame:SetSize(slotSz / ts, slotSz / ts)
         paFrame:SetFrameStrata(fixedStrata)
-        paFrame:SetFrameLevel(button:GetFrameLevel() + ns.LVL_AURA)
+        paFrame:SetFrameLevel(button:GetFrameLevel() + ns.STRATA_SCALE[s.paLevel])
         paFrame:ClearAllPoints()
 
         if i == 1 then
@@ -6817,6 +6850,8 @@ local function ReloadFrames()
             end
         end
 
+        if d.UpdateAuraLevels then d.UpdateAuraLevels() end
+
         -- Buff manager indicators
         if d.bmIconPool and d.health and ns.BM_AnchorIndicators then
             ns.BM_AnchorIndicators(d, d.health, s)
@@ -8751,6 +8786,8 @@ ns.ReloadPartyFrames = function()
             end
         end
 
+        if d.UpdateAuraLevels then d.UpdateAuraLevels() end
+
         -- Buff manager indicators (pass the scaled proxy: BM picks the party
         -- indicator scale by recognizing this exact table)
         if d.bmIconPool and d.health and ns.BM_AnchorIndicators then
@@ -10286,6 +10323,7 @@ local function CreatePreviewFrame(index)
         local countCarrier = CreateFrame("Frame", nil, di)
         countCarrier:SetAllPoints()
         countCarrier:SetFrameLevel(math.max(cd:GetFrameLevel() + 2, dbdr:GetFrameLevel() + 1))
+        di._durCarrier = countCarrier
         local fpInit = (EllesmereUI.GetFontPath and EllesmereUI.GetFontPath("raidFrames")) or "Fonts\\FRIZQT__.TTF"
         local countFS = countCarrier:CreateFontString(nil, "OVERLAY")
         countFS:SetPoint("BOTTOMRIGHT", di, "BOTTOMRIGHT", 1, -1)
@@ -11434,6 +11472,27 @@ local function ApplyPreviewData(f, index)
     if f._nameTextCarrier   then f._nameTextCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.nameLevel])         end
     if f._healthTextCarrier then f._healthTextCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.healthTextLevel]) end
     if f._statusTextCarrier then f._statusTextCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.statusTextLevel]) end
+
+    -- Aura icon pool levels
+    local function RelevelAuraPool(pool, baseOff)
+        if not pool then return end
+        for _, icon in ipairs(pool) do
+            icon:SetFrameLevel(fpl + baseOff)
+            if icon._borderFrame then icon._borderFrame:SetFrameLevel(fpl + baseOff + 1) end
+            if icon._durCarrier  then icon._durCarrier:SetFrameLevel(fpl + baseOff + 2) end
+        end
+    end
+    local pvDebuffOff = ns.STRATA_SCALE[s.debuffLevel]
+    local pvDefOff    = ns.STRATA_SCALE[s.defLevel]
+    local pvPaOff     = ns.STRATA_SCALE[s.paLevel]
+    RelevelAuraPool(f._pvDebuffs, pvDebuffOff)
+    RelevelAuraPool(f._pvDefs, pvDefOff)
+    RelevelAuraPool(f._pvPA, pvPaOff)
+    if f._pvDispelDebuff then
+        f._pvDispelDebuff:SetFrameLevel(fpl + pvDebuffOff)
+        if f._pvDispelDebuff._borderFrame then f._pvDispelDebuff._borderFrame:SetFrameLevel(fpl + pvDebuffOff + 1) end
+        if f._pvDispelDebuff._durCarrier  then f._pvDispelDebuff._durCarrier:SetFrameLevel(fpl + pvDebuffOff + 2) end
+    end
 
     -- Dead/DC overlay (mirror the live-frame status tint: full-cover bg)
     if isDead then
