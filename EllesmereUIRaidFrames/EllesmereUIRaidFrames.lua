@@ -509,6 +509,7 @@ local defaults = {
         raidMarkerOffsetY  = 0,
         readyCheckLevel    = "low",
         showReadyCheck     = true,
+        summonPendingLevel = "low",
         showSummonPending  = true,
         threatBorderSize   = 2,    -- aggro warning border thickness; 0 = off
         showLeaderIcon     = false,
@@ -2339,7 +2340,7 @@ local function StyleButton(button)
     -- Role icon (carrier frame above power bar + its border so icon renders on top)
     local roleCarrier = CreateFrame("Frame", nil, button)
     roleCarrier:SetAllPoints(health)
-    roleCarrier:SetFrameLevel(button:GetFrameLevel() + 5)
+    d.roleCarrier = roleCarrier
     local roleIcon = roleCarrier:CreateTexture(nil, "OVERLAY")
     local riSz = PixelSnap(s.roleIconSize or 14)
     roleIcon:SetSize(riSz, riSz)
@@ -2364,22 +2365,14 @@ local function StyleButton(button)
     AnchorRoleIcon()
     d.AnchorRoleIcon = AnchorRoleIcon
 
-    -- Marker carrier: above the frame border (including the hover/target raise
-    -- at +12/+13) so the raid marker renders on top of the border instead of
-    -- being clipped behind it.
+    -- Marker carrier: raid marker host, above the frame border.
     local markerCarrier = CreateFrame("Frame", nil, button)
     markerCarrier:SetAllPoints(health)
-    markerCarrier:SetFrameLevel(button:GetFrameLevel() + ns.LVL_MARKER)
+    d.markerCarrier = markerCarrier
 
-    -- Leader/assistant icon. Hosted on its own frame lowered to the chat frame's
-    -- strata (one level above chat) so it renders on the same layer as chat,
-    -- above chat on that layer -- NOT on the marker carrier, whose high level
-    -- keeps the raid marker always on top. Parented to the button so it tracks
-    -- the frame; SetAllPoints(health) so the icon still anchors to the health
-    -- bar as before. Strata/level are re-asserted on reload (chat-relative).
+    -- Leader/assistant icon host (level driven by leaderIconLevel).
     d.leaderHost = CreateFrame("Frame", nil, button)
     d.leaderHost:SetAllPoints(health)
-    ns.ApplyChatStrata(d.leaderHost)
 
     local leaderIcon = d.leaderHost:CreateTexture(nil, "OVERLAY")
     local liSz = PixelSnap(s.leaderIconSize or 14)
@@ -2426,11 +2419,37 @@ local function StyleButton(button)
     d.AnchorRaidMarker = AnchorRaidMarker
 
     -- Ready check icon
-    local readyCheck = health:CreateTexture(nil, "OVERLAY", nil, 3)
+    local readyCheckCarrier = CreateFrame("Frame", nil, button)
+    readyCheckCarrier:SetAllPoints(health)
+    d.readyCheckCarrier = readyCheckCarrier
+
+    local readyCheck = readyCheckCarrier:CreateTexture(nil, "OVERLAY", nil, 3)
     readyCheck:SetSize(18, 18)
     readyCheck:SetPoint("CENTER", health, "CENTER", 0, 0)
     readyCheck:Hide()
     d.readyCheck = readyCheck
+
+    -- Summon pending icon (separate carrier so its level is independent of readyCheck)
+    local summonPendingCarrier = CreateFrame("Frame", nil, button)
+    summonPendingCarrier:SetAllPoints(health)
+    d.summonPendingCarrier = summonPendingCarrier
+
+    local summonPending = summonPendingCarrier:CreateTexture(nil, "OVERLAY", nil, 3)
+    summonPending:SetSize(20, 20)
+    summonPending:SetPoint("CENTER", health, "CENTER", 0, 0)
+    summonPending:Hide()
+    d.summonPending = summonPending
+
+    local function UpdateIndicatorsLevel()
+        local pl = button:GetFrameLevel()
+        roleCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.roleIconLevel])
+        markerCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.raidMarkerLevel])
+        readyCheckCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.readyCheckLevel])
+        summonPendingCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.summonPendingLevel])
+        d.leaderHost:SetFrameLevel(pl + ns.STRATA_SCALE[s.leaderIconLevel])
+    end
+    UpdateIndicatorsLevel()
+    d.UpdateIndicatorsLevel = UpdateIndicatorsLevel
 
     -- Debuff icons (pre-created, anchored dynamically)
     d.debuffIcons = {}
@@ -4404,60 +4423,56 @@ end
 -------------------------------------------------------------------------------
 local readyCheckActive = false
 
--- The d.readyCheck texture is shared between the ready-check and incoming-summon
--- indicators (they almost never overlap). Ready check takes priority while a check
--- is active; otherwise the summon status is shown.
-local function UpdateReadyCheck(button, unit)
+-- Returns true if a ready-check icon was shown (used to suppress summon pending).
+local function ApplyReadyCheck(button, unit)
     local d = GetFFD(button)
     local tex = d.readyCheck
-    if not tex then return end
-
-    -- Ready check (priority)
+    if not tex then return false end
     if db.profile.showReadyCheck and readyCheckActive then
         local status = GetReadyCheckStatus(unit)
         if status == "ready" then
-            tex:SetSize(18, 18)
-            tex:SetTexCoord(0, 1, 0, 1)
+            tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
             tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-            tex:Show()
-            return
+            tex:Show(); return true
         elseif status == "notready" then
-            tex:SetSize(18, 18)
-            tex:SetTexCoord(0, 1, 0, 1)
+            tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
             tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
-            tex:Show()
-            return
+            tex:Show(); return true
         elseif status == "waiting" then
-            tex:SetSize(18, 18)
-            tex:SetTexCoord(0, 1, 0, 1)
+            tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
             tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
-            tex:Show()
-            return
+            tex:Show(); return true
         end
     end
+    tex:Hide()
+    return false
+end
 
-    -- Incoming summon
+local function ApplySummonPending(button, unit)
+    local d = GetFFD(button)
+    local tex = d.summonPending
+    if not tex then return end
     if db.profile.showSummonPending and unit and C_IncomingSummon.HasIncomingSummon(unit) then
         local sStatus = C_IncomingSummon.IncomingSummonStatus(unit)
         if sStatus == SUMMON_STATUS_PENDING then
-            tex:SetSize(20, 20)
-            tex:SetAtlas("RaidFrame-Icon-SummonPending")
-            tex:Show()
-            return
+            tex:SetAtlas("RaidFrame-Icon-SummonPending"); tex:Show(); return
         elseif sStatus == SUMMON_STATUS_ACCEPTED then
-            tex:SetSize(20, 20)
-            tex:SetAtlas("RaidFrame-Icon-SummonAccepted")
-            tex:Show()
-            return
+            tex:SetAtlas("RaidFrame-Icon-SummonAccepted"); tex:Show(); return
         elseif sStatus == SUMMON_STATUS_DECLINED then
-            tex:SetSize(20, 20)
-            tex:SetAtlas("RaidFrame-Icon-SummonDeclined")
-            tex:Show()
-            return
+            tex:SetAtlas("RaidFrame-Icon-SummonDeclined"); tex:Show(); return
         end
     end
-
     tex:Hide()
+end
+
+local function UpdateReadyCheck(button, unit)
+    local rcShown = ApplyReadyCheck(button, unit)
+    local d = GetFFD(button)
+    if rcShown then
+        if d.summonPending then d.summonPending:Hide() end
+    else
+        ApplySummonPending(button, unit)
+    end
 end
 
 -------------------------------------------------------------------------------
@@ -6763,8 +6778,6 @@ local function ReloadFrames()
             d.leaderIcon:ClearAllPoints()
             local liPos = (s.leaderIconPosition or "top"):upper()
             d.leaderIcon:SetPoint(liPos, d.health, liPos, s.leaderIconOffsetX or 0, s.leaderIconOffsetY or 0)
-            -- Keep the leader-icon host on the chat frame's current strata/level
-            if d.leaderHost then ns.ApplyChatStrata(d.leaderHost) end
         end
 
         -- Raid marker size + position
@@ -6773,6 +6786,7 @@ local function ReloadFrames()
             d.raidMarker:SetSize(rmSz, rmSz)
             if d.AnchorRaidMarker then d.AnchorRaidMarker() end
         end
+        if d.UpdateIndicatorsLevel then d.UpdateIndicatorsLevel() end
 
         -- Border
         if d.UpdateBorder then d.UpdateBorder() end
@@ -8697,8 +8711,6 @@ ns.ReloadPartyFrames = function()
             d.leaderIcon:ClearAllPoints()
             local liPos = (raw.leaderIconPosition or "top"):upper()
             d.leaderIcon:SetPoint(liPos, d.health, liPos, pp.leaderIconOffsetX or 0, pp.leaderIconOffsetY or 0)
-            -- Keep the leader-icon host on the chat frame's current strata/level
-            if d.leaderHost then ns.ApplyChatStrata(d.leaderHost) end
         end
 
         -- Raid marker
@@ -8707,6 +8719,8 @@ ns.ReloadPartyFrames = function()
             d.raidMarker:SetSize(rmSz, rmSz)
             if d.AnchorRaidMarker then d.AnchorRaidMarker() end
         end
+
+        if d.UpdateIndicatorsLevel then d.UpdateIndicatorsLevel() end
 
         -- Border
         if d.UpdateBorder then d.UpdateBorder() end
@@ -10117,11 +10131,11 @@ local function CreatePreviewFrame(index)
     dispelIconTex:SetAllPoints()
     dispelIconTex:SetTexture("Interface\\Buttons\\WHITE8X8")
 
-    -- Marker carrier: above the frame border (incl. hover/target raise) so the
-    -- leader icon and raid marker render on top of it (mirrors real frames).
+    -- Marker carrier: raid marker host.
     local markerCarrier = CreateFrame("Frame", nil, f)
     markerCarrier:SetAllPoints(health)
-    markerCarrier:SetFrameLevel(f:GetFrameLevel() + ns.LVL_MARKER)
+    markerCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.raidMarkerLevel])
+    f._markerCarrier = markerCarrier
 
     -- Raid marker (on marker carrier, above the border)
     local raidMarker = markerCarrier:CreateTexture(nil, "OVERLAY", nil, 2)
@@ -10130,10 +10144,26 @@ local function CreatePreviewFrame(index)
     raidMarker:Hide()
 
     -- Ready check icon
-    local readyCheck = health:CreateTexture(nil, "OVERLAY", nil, 3)
+    local readyCheckCarrier = CreateFrame("Frame", nil, f)
+    readyCheckCarrier:SetAllPoints(health)
+    readyCheckCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.readyCheckLevel])
+    f._readyCheckCarrier = readyCheckCarrier
+
+    local readyCheck = readyCheckCarrier:CreateTexture(nil, "OVERLAY", nil, 3)
     readyCheck:SetSize(18, 18)
     readyCheck:SetPoint("CENTER", health, "CENTER", 0, 0)
     readyCheck:Hide()
+
+    -- Summon pending icon
+    local summonPendingCarrier = CreateFrame("Frame", nil, f)
+    summonPendingCarrier:SetAllPoints(health)
+    summonPendingCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.summonPendingLevel])
+    f._summonPendingCarrier = summonPendingCarrier
+
+    local summonPending = summonPendingCarrier:CreateTexture(nil, "OVERLAY", nil, 3)
+    summonPending:SetSize(20, 20)
+    summonPending:SetPoint("CENTER", health, "CENTER", 0, 0)
+    summonPending:Hide()
 
     -- Text carrier: name + health text sit ABOVE the base/threat/dispel borders
     -- (+8/+10/+11) and the BM frame-border effect (+11) so they stay readable,
@@ -10177,16 +10207,21 @@ local function CreatePreviewFrame(index)
     statusFS:SetTextColor(pvStc.r, pvStc.g, pvStc.b)
     statusFS:Hide()
 
-    -- Role icon (carrier frame above power bar + its border)
+    -- Role icon carrier
     local roleCarrier = CreateFrame("Frame", nil, f)
     roleCarrier:SetAllPoints(health)
-    roleCarrier:SetFrameLevel(f:GetFrameLevel() + 5)
+    roleCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.roleIconLevel])
+    f._roleCarrier = roleCarrier
     local roleIcon = roleCarrier:CreateTexture(nil, "OVERLAY")
     local riSz = PixelSnap(s.roleIconSize or 14)
     roleIcon:SetSize(riSz, riSz)
 
-    -- Leader icon (on marker carrier, above the border)
-    local leaderIcon = markerCarrier:CreateTexture(nil, "OVERLAY")
+    -- Leader icon host
+    local leaderHost = CreateFrame("Frame", nil, f)
+    leaderHost:SetAllPoints(health)
+    leaderHost:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.leaderIconLevel])
+    f._leaderHost = leaderHost
+    local leaderIcon = leaderHost:CreateTexture(nil, "OVERLAY")
     local liSz = PixelSnap(s.leaderIconSize or 14)
     leaderIcon:SetSize(liSz, liSz)
     local liPos = (s.leaderIconPosition or "top"):upper()
@@ -10220,6 +10255,7 @@ local function CreatePreviewFrame(index)
     f._dispelIconTex = dispelIconTex
     f._raidMarker = raidMarker
     f._readyCheck = readyCheck
+    f._summonPending = summonPending
     f._nameText = nameFS
     f._topNameBar = tnb
     f._topNameBarBg = tnbBg
@@ -11164,40 +11200,40 @@ local function ApplyPreviewData(f, index)
     end
 
     -- Ready check icon
-    if f._readyCheck then
-        local rcStatuses = previewRoles._readyCheck
+    do
         local rcStatuses = previewRoles._readyCheck
         local rcStatus = rcStatuses and rcStatuses[index]
         local isSummon = rcStatus and rcStatus:sub(1, 6) == "summon"
-        local showRC = indVis and rcStatus and (
-            (not isSummon and s.showReadyCheck) or
-            (isSummon and s.showSummonPending)
-        )
-        if showRC then
-            if isSummon then
-                f._readyCheck:SetSize(20, 20)
-            else
-                f._readyCheck:SetSize(18, 18)
-            end
+        local showRC  = indVis and rcStatus and not isSummon and s.showReadyCheck
+        local showSP  = indVis and rcStatus and isSummon and s.showSummonPending
+        if showRC and f._readyCheck then
+            f._readyCheck:SetSize(18, 18)
             if rcStatus == "ready" then
                 f._readyCheck:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
                 f._readyCheck:SetTexCoord(0, 1, 0, 1)
             elseif rcStatus == "notready" then
                 f._readyCheck:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
                 f._readyCheck:SetTexCoord(0, 1, 0, 1)
-            elseif rcStatus == "pending" then
+            else
                 f._readyCheck:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
                 f._readyCheck:SetTexCoord(0, 1, 0, 1)
-            elseif rcStatus == "summon_pending" then
-                f._readyCheck:SetAtlas("RaidFrame-Icon-SummonPending")
-            elseif rcStatus == "summon_accepted" then
-                f._readyCheck:SetAtlas("RaidFrame-Icon-SummonAccepted")
-            elseif rcStatus == "summon_declined" then
-                f._readyCheck:SetAtlas("RaidFrame-Icon-SummonDeclined")
             end
             f._readyCheck:Show()
-        else
+        elseif f._readyCheck then
             f._readyCheck:Hide()
+        end
+        if showSP and f._summonPending then
+            f._summonPending:SetSize(20, 20)
+            if rcStatus == "summon_pending" then
+                f._summonPending:SetAtlas("RaidFrame-Icon-SummonPending")
+            elseif rcStatus == "summon_accepted" then
+                f._summonPending:SetAtlas("RaidFrame-Icon-SummonAccepted")
+            else
+                f._summonPending:SetAtlas("RaidFrame-Icon-SummonDeclined")
+            end
+            f._summonPending:Show()
+        elseif f._summonPending then
+            f._summonPending:Hide()
         end
     end
 
@@ -11481,6 +11517,13 @@ local function ApplyPreviewData(f, index)
     -- Buff manager indicators only shown on the BM page preview, not here
 
     -- Debuff/defensive preview icons managed by PvAuraTicker (cycling system)
+
+    local fpl = f:GetFrameLevel()
+    if f._roleCarrier          then f._roleCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.roleIconLevel])            end
+    if f._markerCarrier        then f._markerCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.raidMarkerLevel])        end
+    if f._readyCheckCarrier    then f._readyCheckCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.readyCheckLevel])    end
+    if f._summonPendingCarrier then f._summonPendingCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.summonPendingLevel]) end
+    if f._leaderHost           then f._leaderHost:SetFrameLevel(fpl + ns.STRATA_SCALE[s.leaderIconLevel])           end
 
     f:Show()
 end

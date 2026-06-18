@@ -2213,6 +2213,62 @@ initFrame:SetScript("OnEvent", function(self)
             cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
         end
 
+        -- Show Ready Check | Show Summon Pending
+        local rcRow
+        rcRow, h = W:DualRow(parent, y,
+            { type="toggle", text="Show Ready Check",
+              getValue=function() return SVal("showReadyCheck", true) end,
+              setValue=function(v) SSet("showReadyCheck", v) end },
+            { type="toggle", text="Show Summon Pending",
+              getValue=function() return SVal("showSummonPending", true) end,
+              setValue=function(v) SSet("showSummonPending", v) end });  y = y - h
+        -- Cog: readyCheckLevel
+        do
+            local rgn = rcRow._leftRegion
+            local _, cogShow = EllesmereUI.BuildCogPopup({
+                title = "Ready Check",
+                rows = {
+                    { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("readyCheckLevel", "low") end,
+                      set=function(v) SSet("readyCheckLevel", v) end },
+                },
+            })
+            local cogBtn = CreateFrame("Button", nil, rgn)
+            cogBtn:SetSize(26, 26)
+            cogBtn:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = cogBtn
+            cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
+            cogBtn:SetAlpha(0.4)
+            local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
+            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.DIRECTIONS_ICON)
+            cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
+            cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
+            cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+        end
+        -- Cog: summonPendingLevel
+        do
+            local rgn = rcRow._rightRegion
+            local _, cogShow = EllesmereUI.BuildCogPopup({
+                title = "Summon Pending",
+                rows = {
+                    { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("summonPendingLevel", "low") end,
+                      set=function(v) SSet("summonPendingLevel", v) end },
+                },
+            })
+            local cogBtn = CreateFrame("Button", nil, rgn)
+            cogBtn:SetSize(26, 26)
+            cogBtn:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = cogBtn
+            cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
+            cogBtn:SetAlpha(0.4)
+            local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
+            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.DIRECTIONS_ICON)
+            cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
+            cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
+            cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+        end
+
         -- Show Group Numbers | Number Size (+ inline color swatch with alpha).
         -- Raid only: party frames have no groups. The size + color also drive the
         -- always-on preview group labels; the toggle gates only the real frames.
