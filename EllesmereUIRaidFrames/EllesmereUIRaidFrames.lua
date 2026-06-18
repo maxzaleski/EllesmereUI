@@ -34,6 +34,15 @@ ns.LVL_AURA   = 13   -- base level for every aura icon/bar (children at +1..+5);
 ns.LVL_RAISE  = 20   -- main border while hovered/targeted (PP container at +1)
 ns.LVL_MARKER = 22   -- raid marker icon (always on top)
 
+-- TODO: remove old scale.
+ns.STRATA_SCALE = {
+    lowest  = 7,  -- base level for name/health text
+    low     = 8,  -- base level for indicators (except Raid Markers at "highest")
+    medium  = 13, -- base level for every aura icon/bar
+    high    = 20, -- main border while hovered/targeted (PP container at +1)
+    highest = 22, -- highest priority, sits above main frame border
+}
+
 -------------------------------------------------------------------------------
 --  Chat-strata host: lowers a frame onto the chat frame's strata, one level
 --  above it, so its contents render on the SAME layer as chat (just above chat
@@ -433,6 +442,7 @@ local defaults = {
         nameSize         = 10,
         nameColorMode    = "custom",  -- "class", "accent", "custom"
         nameCustomColor  = { r = 1, g = 1, b = 1 },
+        nameLevel        = "lowest",
         namePosition     = "topleft", -- "topleft", "top", "topright", "left", "center", "right", "bottomleft", "bottom"
         nameOffsetX      = 0,
         nameOffsetY      = 0,
@@ -440,6 +450,7 @@ local defaults = {
         healthTextColorMode   = "custom",  -- "class", "accent", "custom"
         healthTextCustomColor = { r = 1, g = 1, b = 1 },
         healthTextSize   = 9,
+        healthTextLevel    = "lowest",
         healthTextPosition = "center",
         healthTextOffsetX  = 0,
         healthTextOffsetY  = 0,
@@ -482,6 +493,7 @@ local defaults = {
         -- Indicators
         roleIconStyle    = "modern",  -- "none", "modern", "modernCircle", "styled", "classicCircle", "classic"
         roleIconSize     = 13,
+        roleIconLevel    = "low",
         roleIconPosition = "bottomleft",  -- "topleft", "topright", "bottomleft", "bottomright"
         roleIconOffsetX  = 0,
         roleIconOffsetY  = 0,
@@ -489,19 +501,23 @@ local defaults = {
         showRoleForTank    = true,
         showRoleForHealer  = true,
         showRoleForDPS     = false,
-        showRaidMarker   = true,
-        raidMarkerSize   = 16,
+        showRaidMarker     = true,
+        raidMarkerSize     = 16,
+        raidMarkerLevel    = "highest",
         raidMarkerPosition = "center",  -- "topleft", "top", "topright", "left", "center", "right", "bottomleft", "bottom"
         raidMarkerOffsetX  = 0,
         raidMarkerOffsetY  = 0,
-        showReadyCheck   = true,
-        showSummonPending = true,
-        threatBorderSize = 2,    -- aggro warning border thickness; 0 = off
-        showLeaderIcon   = false,
+        readyCheckLevel    = "low",
+        showReadyCheck     = true,
+        showSummonPending  = true,
+        threatBorderSize   = 2,    -- aggro warning border thickness; 0 = off
+        showLeaderIcon     = false,
+        leaderIconSize     = 14,
+        leaderIconLevel    = "low",
         leaderIconPosition = "top",
-        leaderIconSize   = 14,
         leaderIconOffsetX  = 0,
         leaderIconOffsetY  = 0,
+        statusTextLevel    = "low",
         statusTextPosition = "center",
         statusTextOffsetX  = 0,
         statusTextOffsetY  = 0,
@@ -551,6 +567,7 @@ local defaults = {
         paSize           = 20,
         paShowCountdown  = false,
         paHideTooltip    = true,
+        paLevel          = "medium",
         paPosition       = "center",
         paOffsetX        = 0,
         paOffsetY        = 0,
@@ -563,6 +580,7 @@ local defaults = {
         -- Defensives & Externals
         showDefensives   = true,
         showExternals    = true,
+        defLevel         = "medium",
         defPosition      = "center",
         defOffsetX       = 0,
         defOffsetY       = 0,
@@ -605,6 +623,7 @@ local defaults = {
         debuffSize       = 18,
         debuffCap        = 3,
         debuffHideTooltips = true,
+        debuffLevel      = "medium",
         debuffPosition   = "bottomright",
         debuffOffsetX    = 0,
         debuffOffsetY    = 0,
@@ -631,6 +650,7 @@ local defaults = {
         tsEnabled   = true,   -- legacy boolean; superseded by tsMode (kept harmless)
         tsMode      = "whenHealing",  -- never | whenHealing | always
         tsIconSize  = 24,
+        tsLevel     = "medium",
         tsPosition  = "center",
         tsGrowDirection = "CENTER",
         tsOffsetX   = 0,
