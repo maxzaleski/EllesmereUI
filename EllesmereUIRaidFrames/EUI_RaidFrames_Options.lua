@@ -425,7 +425,7 @@ initFrame:SetScript("OnEvent", function(self)
     end
 
     ---------------------------------------------------------------------------
-    -- Shared strata scale value tables (ns.STRATA_SCALE)
+    -- Shared frame level value tables (ns.FRAMELVL)
     ---------------------------------------------------------------------------
     local sharedStrataScaleValues = {
       ["lowest"]  = "Lowest",

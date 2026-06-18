@@ -35,7 +35,7 @@ ns.LVL_RAISE  = 20   -- main border while hovered/targeted (PP container at +1)
 ns.LVL_MARKER = 22   -- raid marker icon (always on top)
 
 -- TODO: remove old scale.
-ns.STRATA_SCALE = {
+ns.FRAMELVL = {
     lowest  = 12,  -- offset level for name/health text
     low     = 13,  -- offset level for indicators (except Raid Markers at "highest")
     medium  = 14, -- offset level for every aura icon/bar
@@ -2330,9 +2330,9 @@ local function StyleButton(button)
 
     local function UpdateTextCarriersLevel()
         local pl = button:GetFrameLevel()
-        nameTextCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.nameLevel])
-        healthTextCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.healthTextLevel])
-        statusTextCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.statusTextLevel])
+        nameTextCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.nameLevel])
+        healthTextCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.healthTextLevel])
+        statusTextCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.statusTextLevel])
     end
     UpdateTextCarriersLevel()
     d.UpdateTextCarriersLevel = UpdateTextCarriersLevel
@@ -2442,11 +2442,11 @@ local function StyleButton(button)
 
     local function UpdateIndicatorsLevel()
         local pl = button:GetFrameLevel()
-        roleCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.roleIconLevel])
-        markerCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.raidMarkerLevel])
-        readyCheckCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.readyCheckLevel])
-        summonPendingCarrier:SetFrameLevel(pl + ns.STRATA_SCALE[s.summonPendingLevel])
-        d.leaderHost:SetFrameLevel(pl + ns.STRATA_SCALE[s.leaderIconLevel])
+        roleCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.roleIconLevel])
+        markerCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.raidMarkerLevel])
+        readyCheckCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.readyCheckLevel])
+        summonPendingCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.summonPendingLevel])
+        d.leaderHost:SetFrameLevel(pl + ns.FRAMELVL[s.leaderIconLevel])
     end
     UpdateIndicatorsLevel()
     d.UpdateIndicatorsLevel = UpdateIndicatorsLevel
@@ -2708,9 +2708,9 @@ local function StyleButton(button)
 
     local function UpdateAuraLevels()
         local pl = button:GetFrameLevel()
-        local debuffOff = ns.STRATA_SCALE[s.debuffLevel]
-        local defOff    = ns.STRATA_SCALE[s.defLevel]
-        local paOff     = ns.STRATA_SCALE[s.paLevel]
+        local debuffOff = ns.FRAMELVL[s.debuffLevel]
+        local defOff    = ns.FRAMELVL[s.defLevel]
+        local paOff     = ns.FRAMELVL[s.paLevel]
 
         for _, icon in ipairs(d.debuffIcons) do
             icon:SetFrameLevel(pl + debuffOff)
@@ -4162,7 +4162,7 @@ local function RegisterPrivateAuraSlots(button, unit)
         paFrame:SetScale(ts)
         paFrame:SetSize(slotSz / ts, slotSz / ts)
         paFrame:SetFrameStrata(fixedStrata)
-        paFrame:SetFrameLevel(button:GetFrameLevel() + ns.STRATA_SCALE[s.paLevel])
+        paFrame:SetFrameLevel(button:GetFrameLevel() + ns.FRAMELVL[s.paLevel])
         paFrame:ClearAllPoints()
 
         if i == 1 then
@@ -10171,7 +10171,7 @@ local function CreatePreviewFrame(index)
     -- Marker carrier: raid marker host.
     local markerCarrier = CreateFrame("Frame", nil, f)
     markerCarrier:SetAllPoints(health)
-    markerCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.raidMarkerLevel])
+    markerCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.raidMarkerLevel])
     f._markerCarrier = markerCarrier
 
     -- Raid marker (on marker carrier, above the border)
@@ -10183,7 +10183,7 @@ local function CreatePreviewFrame(index)
     -- Ready check icon
     local readyCheckCarrier = CreateFrame("Frame", nil, f)
     readyCheckCarrier:SetAllPoints(health)
-    readyCheckCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.readyCheckLevel])
+    readyCheckCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.readyCheckLevel])
     f._readyCheckCarrier = readyCheckCarrier
 
     local readyCheck = readyCheckCarrier:CreateTexture(nil, "OVERLAY", nil, 3)
@@ -10194,7 +10194,7 @@ local function CreatePreviewFrame(index)
     -- Summon pending icon
     local summonPendingCarrier = CreateFrame("Frame", nil, f)
     summonPendingCarrier:SetAllPoints(health)
-    summonPendingCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.summonPendingLevel])
+    summonPendingCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.summonPendingLevel])
     f._summonPendingCarrier = summonPendingCarrier
 
     local summonPending = summonPendingCarrier:CreateTexture(nil, "OVERLAY", nil, 3)
@@ -10211,11 +10211,11 @@ local function CreatePreviewFrame(index)
     textCarrier:SetAllPoints(health)
 
     local nameTextCarrier = CreateFrame("Frame", nil, textCarrier)
-    nameTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.nameLevel])
+    nameTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.nameLevel])
     f._nameTextCarrier = nameTextCarrier
 
     local healthTextCarrier = CreateFrame("Frame", nil, textCarrier)
-    healthTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.healthTextLevel])
+    healthTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.healthTextLevel])
     f._healthTextCarrier = healthTextCarrier
 
     -- Name text
@@ -10233,7 +10233,7 @@ local function CreatePreviewFrame(index)
     healthFS:SetTextColor(1, 1, 1, 0.9)
 
     local statusTextCarrier = CreateFrame("Frame", nil, textCarrier)
-    statusTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.statusTextLevel])
+    statusTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.statusTextLevel])
     f._statusTextCarrier = statusTextCarrier
 
     -- Status text (DEAD / OFFLINE / AFK)
@@ -10247,7 +10247,7 @@ local function CreatePreviewFrame(index)
     -- Role icon carrier
     local roleCarrier = CreateFrame("Frame", nil, f)
     roleCarrier:SetAllPoints(health)
-    roleCarrier:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.roleIconLevel])
+    roleCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.roleIconLevel])
     f._roleCarrier = roleCarrier
     local roleIcon = roleCarrier:CreateTexture(nil, "OVERLAY")
     local riSz = PixelSnap(s.roleIconSize or 14)
@@ -10256,7 +10256,7 @@ local function CreatePreviewFrame(index)
     -- Leader icon host
     local leaderHost = CreateFrame("Frame", nil, f)
     leaderHost:SetAllPoints(health)
-    leaderHost:SetFrameLevel(f:GetFrameLevel() + ns.STRATA_SCALE[s.leaderIconLevel])
+    leaderHost:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.leaderIconLevel])
     f._leaderHost = leaderHost
     local leaderIcon = leaderHost:CreateTexture(nil, "OVERLAY")
     local liSz = PixelSnap(s.leaderIconSize or 14)
@@ -11469,9 +11469,9 @@ local function ApplyPreviewData(f, index)
         end
     end
     local fpl = f:GetFrameLevel()
-    if f._nameTextCarrier   then f._nameTextCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.nameLevel])         end
-    if f._healthTextCarrier then f._healthTextCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.healthTextLevel]) end
-    if f._statusTextCarrier then f._statusTextCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.statusTextLevel]) end
+    if f._nameTextCarrier   then f._nameTextCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.nameLevel])         end
+    if f._healthTextCarrier then f._healthTextCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.healthTextLevel]) end
+    if f._statusTextCarrier then f._statusTextCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.statusTextLevel]) end
 
     -- Aura icon pool levels
     local function RelevelAuraPool(pool, baseOff)
@@ -11482,9 +11482,9 @@ local function ApplyPreviewData(f, index)
             if icon._durCarrier  then icon._durCarrier:SetFrameLevel(fpl + baseOff + 2) end
         end
     end
-    local pvDebuffOff = ns.STRATA_SCALE[s.debuffLevel]
-    local pvDefOff    = ns.STRATA_SCALE[s.defLevel]
-    local pvPaOff     = ns.STRATA_SCALE[s.paLevel]
+    local pvDebuffOff = ns.FRAMELVL[s.debuffLevel]
+    local pvDefOff    = ns.FRAMELVL[s.defLevel]
+    local pvPaOff     = ns.FRAMELVL[s.paLevel]
     RelevelAuraPool(f._pvDebuffs, pvDebuffOff)
     RelevelAuraPool(f._pvDefs, pvDefOff)
     RelevelAuraPool(f._pvPA, pvPaOff)
@@ -11578,11 +11578,11 @@ local function ApplyPreviewData(f, index)
     -- Debuff/defensive preview icons managed by PvAuraTicker (cycling system)
 
     local fpl = f:GetFrameLevel()
-    if f._roleCarrier          then f._roleCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.roleIconLevel])            end
-    if f._markerCarrier        then f._markerCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.raidMarkerLevel])        end
-    if f._readyCheckCarrier    then f._readyCheckCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.readyCheckLevel])    end
-    if f._summonPendingCarrier then f._summonPendingCarrier:SetFrameLevel(fpl + ns.STRATA_SCALE[s.summonPendingLevel]) end
-    if f._leaderHost           then f._leaderHost:SetFrameLevel(fpl + ns.STRATA_SCALE[s.leaderIconLevel])           end
+    if f._roleCarrier          then f._roleCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.roleIconLevel])            end
+    if f._markerCarrier        then f._markerCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.raidMarkerLevel])        end
+    if f._readyCheckCarrier    then f._readyCheckCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.readyCheckLevel])    end
+    if f._summonPendingCarrier then f._summonPendingCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.summonPendingLevel]) end
+    if f._leaderHost           then f._leaderHost:SetFrameLevel(fpl + ns.FRAMELVL[s.leaderIconLevel])           end
 
     f:Show()
 end
