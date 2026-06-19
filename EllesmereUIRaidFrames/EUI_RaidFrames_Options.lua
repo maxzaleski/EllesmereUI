@@ -2472,6 +2472,14 @@ initFrame:SetScript("OnEvent", function(self)
         }
         local dispelOverlayOrder = { "none", "fill", "full", "gradient" }
 
+        local dispelGradientDirValues = {
+            ["gradient-tb"] = "Top to Bottom",
+            ["gradient-bt"] = "Bottom to Top",
+            ["gradient-lr"] = "Left to Right",
+            ["gradient-rl"] = "Right to Left",
+        }
+        local dispelGradientDirOrder = { "gradient-tb", "gradient-bt", "gradient-lr", "gradient-rl" }
+
         -- Row 1: Dispel Overlay | Overlay Opacity
         _, h = W:DualRow(parent, y,
             { type="dropdown", text="Dispel Overlay", values=dispelOverlayValues, order=dispelOverlayOrder,
@@ -2483,6 +2491,14 @@ initFrame:SetScript("OnEvent", function(self)
               getValue=function() return SVal("dispelOverlayOpacity", 100) end,
               setValue=function(v) SSet("dispelOverlayOpacity", v) end });  y = y - h
 
+        -- Row 1b: Gradient Direction (only relevant when overlay is "gradient")
+        _, h = W:DualRow(parent, y,
+            { type="dropdown", text="Gradient Direction", values=dispelGradientDirValues, order=dispelGradientDirOrder,
+              disabled=function() return SVal("dispelOverlay", "fill") ~= "gradient" end,
+              disabledTooltip="Gradient Overlay",
+              getValue=function() return SVal("dispelGradientDir", "gradient-tb") end,
+              setValue=function(v) SSet("dispelGradientDir", v) end },
+            nil);  y = y - h
 
         -- Row 2: Dispel Border Size | Dispel Icon Position (includes "None" to disable)
         local dispelIconPositionValues = {

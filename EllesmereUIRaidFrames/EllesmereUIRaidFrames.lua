@@ -549,8 +549,9 @@ local defaults = {
 
         -- Dispels
         dispelBorderSize = 0,
-        dispelOverlay    = "fill",   -- "none", "fill", "full", "gradient"
+        dispelOverlay        = "fill",   -- "none", "fill", "full", "gradient"
         dispelOverlayOpacity = 100,
+        dispelGradientDir    = "gradient-tb",  -- "gradient-tb", "gradient-bt", "gradient-lr", "gradient-rl"
         dispelShowAll        = true,   -- true = highlight any dispellable debuff; false = only player-dispellable
         showDispelIcons  = false,
         dispelIconPosition = "right",
@@ -4082,7 +4083,7 @@ local function ApplyDispelOverlay(d, dc, s)
         if health then
             olTex:SetAllPoints(health)
         end
-        olTex:SetTexture("Interface\\AddOns\\EllesmereUI\\media\\textures\\gradient-tb.tga")
+        olTex:SetTexture(healthBarTextures[s.dispelGradientDir])
         olTex:SetVertexColor(dc.r, dc.g, dc.b, alpha)
     end
     olTex:Show()
@@ -11249,7 +11250,7 @@ local function ApplyPreviewData(f, index)
             elseif olMode == "gradient" then
                 -- Same pre-baked gradient texture as the live frames so the preview matches.
                 olTex:SetAllPoints(f._health)
-                olTex:SetTexture("Interface\\AddOns\\EllesmereUI\\media\\textures\\gradient-tb.tga")
+                olTex:SetTexture(healthBarTextures[s.dispelGradientDir])
                 olTex:SetVertexColor(dispelDC.r, dispelDC.g, dispelDC.b, olAlpha)
             end
             olTex:Show()
