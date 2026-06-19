@@ -2706,7 +2706,7 @@ local function StyleButton(button)
     AnchorDefensives()
     d.AnchorDefensives = AnchorDefensives
 
-    local function UpdateAuraLevels()
+    local function UpdateAurasLevel()
         local pl = button:GetFrameLevel()
         local debuffOff = ns.FRAMELVL[s.debuffLevel]
         local defOff    = ns.FRAMELVL[s.defLevel]
@@ -2734,8 +2734,8 @@ local function StyleButton(button)
             d.dispelContainer:SetFrameLevel(pl + paOff)
         end
     end
-    UpdateAuraLevels()
-    d.UpdateAuraLevels = UpdateAuraLevels
+    UpdateAurasLevel()
+    d.UpdateAurasLevel = UpdateAurasLevel
 
     -- Anchor name text based on position setting
     -- Uses two-point anchoring (LEFT+RIGHT) for width constraint, with
@@ -6850,7 +6850,7 @@ local function ReloadFrames()
             end
         end
 
-        if d.UpdateAuraLevels then d.UpdateAuraLevels() end
+        if d.UpdateAurasLevel then d.UpdateAurasLevel() end
 
         -- Buff manager indicators
         if d.bmIconPool and d.health and ns.BM_AnchorIndicators then
@@ -8786,7 +8786,7 @@ ns.ReloadPartyFrames = function()
             end
         end
 
-        if d.UpdateAuraLevels then d.UpdateAuraLevels() end
+        if d.UpdateAurasLevel then d.UpdateAurasLevel() end
 
         -- Buff manager indicators (pass the scaled proxy: BM picks the party
         -- indicator scale by recognizing this exact table)
