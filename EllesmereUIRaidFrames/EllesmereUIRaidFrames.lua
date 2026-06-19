@@ -354,6 +354,10 @@ local playerFriendlySpell = FRIENDLY_SPELL_BY_CLASS[playerClassToken]
 -- Rendered as a white border matching the hover highlight style.
 local THREAT_ACTIVE = { [2] = true, [3] = true }
 
+-- Dark mode default colours (must match UnitFrames exactly)
+local DARK_FILL_R, DARK_FILL_G, DARK_FILL_B = 0x11/255, 0x11/255, 0x11/255  -- #111111
+local DARK_BG_R,   DARK_BG_G,   DARK_BG_B   = 0x4f/255, 0x4f/255, 0x4f/255  -- #4f4f4f
+
 -------------------------------------------------------------------------------
 --  Default settings
 -------------------------------------------------------------------------------
@@ -412,6 +416,8 @@ local defaults = {
         healthColorMode  = "class",  -- "class", "dark", "classic", "custom"
         customFillColor  = { r = 37/255, g = 193/255, b = 29/255 },
         customBgColor    = { r = 17/255, g = 17/255, b = 17/255 },
+        darkFillColor    = { r = DARK_FILL_R, g = DARK_FILL_G, b = DARK_FILL_B },
+        darkBgColor      = { r = DARK_BG_R,   g = DARK_BG_G,   b = DARK_BG_B   },
         bgDarkness       = 50,
 
         -- Power bar (on when any powerShowFor* role is true)
@@ -1134,10 +1140,7 @@ local function GetClassicHealthCurve()
     return curve
 end
 
--- Dark mode colors (must match UnitFrames exactly)
-local DARK_FILL_R, DARK_FILL_G, DARK_FILL_B = 0x11/255, 0x11/255, 0x11/255  -- #111111
 local DARK_FILL_A = 0.9
-local DARK_BG_R, DARK_BG_G, DARK_BG_B = 0x4f/255, 0x4f/255, 0x4f/255        -- #4f4f4f
 
 -- Paints the health-bar background (and dims the fill) for the unit's life and
 -- connection state. Dead/offline: the bg covers the FULL bar so the tint reads
@@ -1176,7 +1179,8 @@ function ns._ApplyHealthBg(d, health, s, unit)
         healthBgBar:Show()
         local bgAlpha = (s.healthBgOpacity or 100) / 100
         if s.healthColorMode == "dark" then
-            healthBgBar:SetStatusBarColor(DARK_BG_R, DARK_BG_G, DARK_BG_B, bgAlpha)
+            local dbc = s.darkBgColor
+            healthBgBar:SetStatusBarColor(dbc.r, dbc.g, dbc.b, bgAlpha)
         else
             local bgc = s.customBgColor
             healthBgBar:SetStatusBarColor(bgc.r, bgc.g, bgc.b, bgAlpha)
@@ -1187,7 +1191,8 @@ function ns._ApplyHealthBg(d, health, s, unit)
     bg:SetPoint("TOPLEFT", health:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
     bg:SetPoint("BOTTOMRIGHT", health, "BOTTOMRIGHT", 0, 0)
     if s.healthColorMode == "dark" then
-        bg:SetColorTexture(DARK_BG_R, DARK_BG_G, DARK_BG_B, 1)
+        local dbc = s.darkBgColor
+        bg:SetColorTexture(dbc.r, dbc.g, dbc.b, 1)
     else
         local bgc = s.customBgColor
         bg:SetColorTexture(bgc.r, bgc.g, bgc.b, (s.bgDarkness or 50) / 100)
@@ -1199,7 +1204,8 @@ local function GetHealthColor(unit, s)
     local mode = s.healthColorMode or "class"
 
     if mode == "dark" then
-        return DARK_FILL_R, DARK_FILL_G, DARK_FILL_B
+        local dfc = s.darkFillColor
+        return dfc.r, dfc.g, dfc.b
     elseif mode == "classic" then
         -- Native WoW health gradient via Blizzard's curve system (secret-value safe)
         local color = UnitHealthPercent(unit, true, GetClassicHealthCurve())
@@ -10734,7 +10740,8 @@ local function ApplyPreviewData(f, index)
         local mode = s.healthColorMode or "class"
         local fillTex = f._health:GetStatusBarTexture()
         if mode == "dark" then
-            f._health:SetStatusBarColor(DARK_FILL_R, DARK_FILL_G, DARK_FILL_B, 1)
+            local dfc = s.darkFillColor
+            f._health:SetStatusBarColor(dfc.r, dfc.g, dfc.b, 1)
             if fillTex then fillTex:SetAlpha(DARK_FILL_A) end
         elseif mode == "classic" then
             if fillTex then fillTex:SetAlpha(1) end
@@ -10772,7 +10779,8 @@ local function ApplyPreviewData(f, index)
             f._bg:ClearAllPoints()
             f._bg:SetPoint("TOPLEFT", f._health:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
             f._bg:SetPoint("BOTTOMRIGHT", f._health, "BOTTOMRIGHT", 0, 0)
-            f._bg:SetColorTexture(DARK_BG_R, DARK_BG_G, DARK_BG_B, 1)
+            local dbc = s.darkBgColor
+            f._bg:SetColorTexture(dbc.r, dbc.g, dbc.b, 1)
         else
             -- BG covers the missing-health portion only (never behind the fill),
             -- matching the real-frame themed branch + Dark mode. Keeps the preview

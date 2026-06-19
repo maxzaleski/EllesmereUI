@@ -954,6 +954,35 @@ initFrame:SetScript("OnEvent", function(self)
             EllesmereUI.RegisterWidgetRefresh(UpdateSwatchVis)
             UpdateSwatchVis()
         end
+        -- Inline swatch for dark mode fill color
+        do
+            local rgn = row._leftRegion
+            local darkFillSwatch = EllesmereUI.BuildColorSwatch(
+                rgn, row:GetFrameLevel() + 3,
+                function()
+                    local c = SGet("darkFillColor")
+                    if c then return c.r, c.g, c.b, 1 end
+                    local d = db.profile.darkFillColor; return d.r, d.g, d.b, 1
+                end,
+                function(r, g, b)
+                    SWrite("darkFillColor", { r=r, g=g, b=b })
+                    ReloadAndUpdate()
+                end, false, 20)
+            darkFillSwatch:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = darkFillSwatch
+            local darkFillBlock = CreateFrame("Frame", nil, darkFillSwatch)
+            darkFillBlock:SetAllPoints()
+            darkFillBlock:SetFrameLevel(darkFillSwatch:GetFrameLevel() + 10)
+            darkFillBlock:EnableMouse(true)
+            darkFillBlock:SetScript("OnEnter", function() EllesmereUI.ShowWidgetTooltip(darkFillSwatch, "Only available in Dark Mode") end)
+            darkFillBlock:SetScript("OnLeave", function() EllesmereUI.HideWidgetTooltip() end)
+            local function UpdateDarkFillSwatchVis()
+                local enabled = SVal("healthColorMode", "class") == "dark"
+                if enabled then darkFillSwatch:SetAlpha(1); darkFillBlock:Hide() else darkFillSwatch:SetAlpha(0.3); darkFillBlock:Show() end
+            end
+            EllesmereUI.RegisterWidgetRefresh(UpdateDarkFillSwatchVis)
+            UpdateDarkFillSwatchVis()
+        end
         -- Inline swatch for custom bg color
         do
             local rgn = row._rightRegion
@@ -983,6 +1012,35 @@ initFrame:SetScript("OnEvent", function(self)
             end
             EllesmereUI.RegisterWidgetRefresh(UpdateBgSwatchVis)
             UpdateBgSwatchVis()
+        end
+        -- Inline swatch for dark mode bg color
+        do
+            local rgn = row._rightRegion
+            local darkBgSwatch = EllesmereUI.BuildColorSwatch(
+                rgn, row:GetFrameLevel() + 3,
+                function()
+                    local c = SGet("darkBgColor")
+                    if c then return c.r, c.g, c.b, 1 end
+                    local d = db.profile.darkBgColor; return d.r, d.g, d.b, 1
+                end,
+                function(r, g, b)
+                    SWrite("darkBgColor", { r=r, g=g, b=b })
+                    ReloadAndUpdate()
+                end, false, 20)
+            darkBgSwatch:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = darkBgSwatch
+            local darkBgBlock = CreateFrame("Frame", nil, darkBgSwatch)
+            darkBgBlock:SetAllPoints()
+            darkBgBlock:SetFrameLevel(darkBgSwatch:GetFrameLevel() + 10)
+            darkBgBlock:EnableMouse(true)
+            darkBgBlock:SetScript("OnEnter", function() EllesmereUI.ShowWidgetTooltip(darkBgSwatch, "Only available in Dark Mode") end)
+            darkBgBlock:SetScript("OnLeave", function() EllesmereUI.HideWidgetTooltip() end)
+            local function UpdateDarkBgSwatchVis()
+                local enabled = SVal("healthColorMode", "class") == "dark"
+                if enabled then darkBgSwatch:SetAlpha(1); darkBgBlock:Hide() else darkBgSwatch:SetAlpha(0.3); darkBgBlock:Show() end
+            end
+            EllesmereUI.RegisterWidgetRefresh(UpdateDarkBgSwatchVis)
+            UpdateDarkBgSwatchVis()
         end
 
         ns._editTargets = ns._editTargets or {}
