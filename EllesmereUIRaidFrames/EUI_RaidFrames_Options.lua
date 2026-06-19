@@ -902,6 +902,15 @@ initFrame:SetScript("OnEvent", function(self)
               getValue=function() return SVal("healthBarOpacity", 100) end,
               setValue=function(v) SSet("healthBarOpacity", v) end });  y = y - h
 
+        -- Row 1b: Background Texture | Background Opacity
+        _, h = W:DualRow(parent, y,
+            { type="dropdown", text="Background Texture", values=hbtValues, order=hbtOrder,
+              getValue=function() return SVal("healthBgTexture", "none") end,
+              setValue=function(v) SSet("healthBgTexture", v) end },
+            { type="slider", text="Background Opacity", min=0, max=100, step=1,
+              getValue=function() return SVal("healthBgOpacity", 100) end,
+              setValue=function(v) SSet("healthBgOpacity", v) end });  y = y - h
+
         -- Row 2: Fill Color | Background
         row, h = W:DualRow(parent, y,
             { type="dropdown", text="Fill Color", values=healthColorValues, order=healthColorOrder,

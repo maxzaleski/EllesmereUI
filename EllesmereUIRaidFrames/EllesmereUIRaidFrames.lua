@@ -407,6 +407,8 @@ local defaults = {
         -- Health bar
         healthBarTexture = "atrocity",
         healthBarOpacity = 100,
+        healthBgTexture  = "atrocity",
+        healthBgOpacity  = 100,
         healthColorMode  = "class",  -- "class", "dark", "classic", "custom"
         customFillColor  = { r = 37/255, g = 193/255, b = 29/255 },
         customBgColor    = { r = 17/255, g = 17/255, b = 17/255 },
@@ -1012,9 +1014,23 @@ local function InitHealthBarTextures()
     end
 end
 
-local function ResolveHealthTexture()
-    local key = db.profile.healthBarTexture or "atrocity"
-    return EllesmereUI.ResolveTexturePath(healthBarTextures, key, healthBarTextures["atrocity"] or "Interface\\Buttons\\WHITE8X8")
+local function ResolveHealthTexture(key)
+    assert(key, "ResolveHealthTexture: expects 'key' argument")
+    return EllesmereUI.ResolveTexturePath(healthBarTextures, key, "Interface\\Buttons\\WHITE8X8")
+end
+
+local function CreateHealthStatusBar(parent, frameLevel, height, texPath)
+    local bar = CreateFrame("StatusBar", nil, parent)
+    bar:SetFrameLevel(frameLevel)
+    bar:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
+    bar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
+    bar:SetHeight(height)
+    bar:SetStatusBarTexture(texPath)
+    bar:GetStatusBarTexture():SetHorizTile(false)
+    if PP then PP.DisablePixelSnap(bar) end
+    bar:SetMinMaxValues(0, 100)
+    bar:SetValue(100)
+    return bar
 end
 
 -- Expose for options panel
@@ -1136,12 +1152,14 @@ local DARK_BG_R, DARK_BG_G, DARK_BG_B = 0x4f/255, 0x4f/255, 0x4f/255        -- #
 -- local) to stay under the main-chunk 200-local cap.
 function ns._ApplyHealthBg(d, health, s, unit)
     local bg = d.bg
+    local healthBgBar = d.healthBgBar
     if UnitIsDeadOrGhost(unit) then
         if bg then
             local c = s.statusColorDead or { r = 0x24/255, g = 0x17/255, b = 0x17/255 }
             bg:ClearAllPoints(); bg:SetAllPoints(health)
             bg:SetColorTexture(c.r, c.g, c.b, 1)
         end
+        if healthBgBar then healthBgBar:Hide() end
         if health then health:SetStatusBarColor(0.3, 0.3, 0.3, 0.5) end
         return
     elseif not UnitIsConnected(unit) then
@@ -1150,8 +1168,19 @@ function ns._ApplyHealthBg(d, health, s, unit)
             bg:ClearAllPoints(); bg:SetAllPoints(health)
             bg:SetColorTexture(c.r, c.g, c.b, 1)
         end
+        if healthBgBar then healthBgBar:Hide() end
         if health then health:SetStatusBarColor(0.3, 0.3, 0.3, 0.3) end
         return
+    end
+    if healthBgBar then
+        healthBgBar:Show()
+        local bgAlpha = (s.healthBgOpacity or 100) / 100
+        if s.healthColorMode == "dark" then
+            healthBgBar:SetStatusBarColor(DARK_BG_R, DARK_BG_G, DARK_BG_B, bgAlpha)
+        else
+            local bgc = s.customBgColor
+            healthBgBar:SetStatusBarColor(bgc.r, bgc.g, bgc.b, bgAlpha)
+        end
     end
     if not bg then return end
     bg:ClearAllPoints()
@@ -2175,19 +2204,16 @@ local function StyleButton(button)
     if PP then PP.DisablePixelSnap(bg) end
     d.bg = bg
 
+    -- Health background bar (sits below fill, always at 100%, shows the bg texture
+    -- in the missing-health region where the fill bar doesn't cover it)
+    d.healthBgBar = CreateHealthStatusBar(
+        button, button:GetFrameLevel() + 1, healthH,
+        ResolveHealthTexture(s.healthBgTexture))
+
     -- Health bar
-    local health = CreateFrame("StatusBar", nil, button)
-    health:SetFrameLevel(button:GetFrameLevel() + 2)
-    health:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
-    health:SetPoint("TOPRIGHT", button, "TOPRIGHT", 0, 0)
-    health:SetHeight(healthH)
-    local texPath = ResolveHealthTexture()
-    health:SetStatusBarTexture(texPath)
-    health:GetStatusBarTexture():SetHorizTile(false)
-    if PP then PP.DisablePixelSnap(health) end
-    health:SetMinMaxValues(0, 100)
-    health:SetValue(100)
-    d.health = health
+    d.health = CreateHealthStatusBar(
+        button, button:GetFrameLevel() + 2, healthH,
+        ResolveHealthTexture(s.healthBarTexture))
 
     -- Power bar (ALWAYS created, anchored to button bottom for pixel alignment).
     -- Created HIDDEN and decoupled from the role toggles: UpdateButton's per-role
@@ -2200,7 +2226,7 @@ local function StyleButton(button)
         power:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 0, 0)
         power:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, 0)
         power:SetHeight(powerH)
-        power:SetStatusBarTexture(texPath)
+        power:SetStatusBarTexture(ResolveHealthTexture(s.healthBarTexture))
         power:GetStatusBarTexture():SetHorizTile(false)
         if PP then PP.DisablePixelSnap(power) end
         power:SetMinMaxValues(0, 1)
@@ -5283,7 +5309,7 @@ FB.ApplyStyle = function(owner)
     else
         grow = s.unitGrowth or "DOWN"
     end
-    local texPath = ResolveHealthTexture()
+    local texPath = ResolveHealthTexture(s.healthBarTexture)
     local bgc = s.customBgColor or { r = 17/255, g = 17/255, b = 17/255 }
 
     local stepW, stepH = 0, 0
@@ -6843,7 +6869,8 @@ local function ReloadFrames()
 
     local powerH = IsPowerBarEnabled(s) and PixelSnap(s.powerHeight or 4) or 0
     local healthH = PixelSnap(bh - powerH)
-    local texPath = ResolveHealthTexture()
+    local texPath   = ResolveHealthTexture(s.healthBarTexture)
+    local bgTexPath = ResolveHealthTexture(s.healthBgTexture)
 
     for _, btn in ipairs(allButtons) do
         local d = GetFFD(btn)
@@ -6855,6 +6882,13 @@ local function ReloadFrames()
         if d.bg then
             local bgc = s.customBgColor
             d.bg:SetColorTexture(bgc.r, bgc.g, bgc.b, (s.bgDarkness or 50) / 100)
+        end
+
+        -- Health background bar texture + height
+        if d.healthBgBar then
+            d.healthBgBar:SetStatusBarTexture(bgTexPath)
+            d.healthBgBar:GetStatusBarTexture():SetHorizTile(false)
+            d.healthBgBar:SetHeight(healthH)
         end
 
         -- Health bar height/anchor + Top Name Bar. The helper reserves the top
@@ -8774,7 +8808,7 @@ ns.ReloadPartyFrames = function()
     local bh = PixelSnap(raw.partyFrameHeight or raw.frameHeight or 60)
     local powerH = IsPowerBarEnabled(raw) and PixelSnap(raw.powerHeight or 4) or 0
     local healthH = PixelSnap(bh - powerH)
-    local texPath = ResolveHealthTexture()
+    local texPath = ResolveHealthTexture(raw.healthBarTexture)
 
     for _, btn in ipairs(ns._partyAllButtons) do
         local d = GetFFD(btn)
@@ -9971,7 +10005,7 @@ local function CreatePreviewFrame(index)
     health:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
     health:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
     health:SetHeight(healthH)
-    health:SetStatusBarTexture(ResolveHealthTexture())
+    health:SetStatusBarTexture(ResolveHealthTexture(s.healthBarTexture))
     health:GetStatusBarTexture():SetHorizTile(false)
     if PP then PP.DisablePixelSnap(health) end
     health:SetMinMaxValues(0, 100)
@@ -10186,7 +10220,7 @@ local function CreatePreviewFrame(index)
         power:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
         power:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 0)
         power:SetHeight(powerH)
-        power:SetStatusBarTexture(ResolveHealthTexture())
+        power:SetStatusBarTexture(ResolveHealthTexture(s.healthBarTexture))
         power:GetStatusBarTexture():SetHorizTile(false)
         if PP then PP.DisablePixelSnap(power) end
         power:SetMinMaxValues(0, 100)
@@ -10690,7 +10724,7 @@ local function ApplyPreviewData(f, index)
 
     -- Health bar
     if f._health then
-        f._health:SetStatusBarTexture(ResolveHealthTexture())
+        f._health:SetStatusBarTexture(ResolveHealthTexture(s.healthBarTexture))
         f._health:GetStatusBarTexture():SetHorizTile(false)
         f._health:SetMinMaxValues(0, 100)
         f._health:SetValue(healthPct)
@@ -11060,7 +11094,7 @@ local function ApplyPreviewData(f, index)
     if f._power then
         if not hidePower then
             f._power:SetHeight(powerH)
-            f._power:SetStatusBarTexture(ResolveHealthTexture())
+            f._power:SetStatusBarTexture(ResolveHealthTexture(s.healthBarTexture))
             f._power:GetStatusBarTexture():SetHorizTile(false)
             local pwPct = previewPowerValues[index] or (60 + math.random(40))
             f._power:SetMinMaxValues(0, 100)
@@ -12234,7 +12268,7 @@ ns._ShowSizePreview = function(tier)
     local perGroup    = 5
     local numGroups   = math.ceil(frameCount / perGroup)
 
-    local texPath = ResolveHealthTexture()
+    local texPath = ResolveHealthTexture(s.healthBarTexture)
     local powerH = IsPowerBarEnabled(s) and PixelSnap(s.powerHeight or 4) or 0
     local healthH = PixelSnap(bh - powerH)
     local topBarH = (s.topNameBarEnabled and PixelSnap(s.topNameBarHeight or 20)) or 0
