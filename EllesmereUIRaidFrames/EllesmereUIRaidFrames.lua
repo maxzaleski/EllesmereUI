@@ -4454,58 +4454,65 @@ end
 -------------------------------------------------------------------------------
 --  Ready check handling
 -------------------------------------------------------------------------------
-local readyCheckActive = false
+local UpdateReadyCheck  -- forward-declared; assigned inside do..end below
+do
+    local readyCheckActive = false
 
--- Returns true if a ready-check icon was shown (used to suppress summon pending).
-local function ApplyReadyCheck(button, unit)
-    local d = GetFFD(button)
-    local tex = d.readyCheck
-    if not tex then return false end
-    if db.profile.showReadyCheck and readyCheckActive then
-        local status = GetReadyCheckStatus(unit)
-        if status == "ready" then
-            tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
-            tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-            tex:Show(); return true
-        elseif status == "notready" then
-            tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
-            tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
-            tex:Show(); return true
-        elseif status == "waiting" then
-            tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
-            tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
-            tex:Show(); return true
+    local function ApplyReadyCheck(button, unit)
+        local d = GetFFD(button)
+        local tex = d.readyCheck
+        if not tex then return false end
+        if db.profile.showReadyCheck and readyCheckActive then
+            local status = GetReadyCheckStatus(unit)
+            if status == "ready" then
+                tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
+                tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+                tex:Show(); return true
+            elseif status == "notready" then
+                tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
+                tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
+                tex:Show(); return true
+            elseif status == "waiting" then
+                tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
+                tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
+                tex:Show(); return true
+            end
+        end
+        tex:Hide()
+        return false
+    end
+
+    local function ApplySummonPending(button, unit)
+        local d = GetFFD(button)
+        local tex = d.summonPending
+        if not tex then return end
+        if db.profile.showSummonPending and unit and C_IncomingSummon.HasIncomingSummon(unit) then
+            local sStatus = C_IncomingSummon.IncomingSummonStatus(unit)
+            if sStatus == SUMMON_STATUS_PENDING then
+                tex:SetAtlas("RaidFrame-Icon-SummonPending"); tex:Show(); return
+            elseif sStatus == SUMMON_STATUS_ACCEPTED then
+                tex:SetAtlas("RaidFrame-Icon-SummonAccepted"); tex:Show(); return
+            elseif sStatus == SUMMON_STATUS_DECLINED then
+                tex:SetAtlas("RaidFrame-Icon-SummonDeclined"); tex:Show(); return
+            end
+        end
+        tex:Hide()
+    end
+
+    UpdateReadyCheck = function(button, unit)
+        local rcShown = ApplyReadyCheck(button, unit)
+        local d = GetFFD(button)
+        if rcShown then
+            if d.summonPending then d.summonPending:Hide() end
+        else
+            ApplySummonPending(button, unit)
         end
     end
-    tex:Hide()
-    return false
-end
 
-local function ApplySummonPending(button, unit)
-    local d = GetFFD(button)
-    local tex = d.summonPending
-    if not tex then return end
-    if db.profile.showSummonPending and unit and C_IncomingSummon.HasIncomingSummon(unit) then
-        local sStatus = C_IncomingSummon.IncomingSummonStatus(unit)
-        if sStatus == SUMMON_STATUS_PENDING then
-            tex:SetAtlas("RaidFrame-Icon-SummonPending"); tex:Show(); return
-        elseif sStatus == SUMMON_STATUS_ACCEPTED then
-            tex:SetAtlas("RaidFrame-Icon-SummonAccepted"); tex:Show(); return
-        elseif sStatus == SUMMON_STATUS_DECLINED then
-            tex:SetAtlas("RaidFrame-Icon-SummonDeclined"); tex:Show(); return
-        end
-    end
-    tex:Hide()
-end
-
-local function UpdateReadyCheck(button, unit)
-    local rcShown = ApplyReadyCheck(button, unit)
-    local d = GetFFD(button)
-    if rcShown then
-        if d.summonPending then d.summonPending:Hide() end
-    else
-        ApplySummonPending(button, unit)
-    end
+    -- Accessors so event handlers outside this block can read/write the flag
+    -- without the variable bleeding into the outer local budget.
+    ns._setReadyCheckActive = function(v) readyCheckActive = v end
+    ns._getReadyCheckActive = function()  return readyCheckActive end
 end
 
 -------------------------------------------------------------------------------
@@ -7855,7 +7862,7 @@ local function OnEvent(self, event, arg1, ...)
         local t0 = ns.ProfBegin("UpdateTargetBorders"); ns._UpdateTargetBorders(); ns.ProfEnd("UpdateTargetBorders", t0)
     elseif event == "READY_CHECK" then
         local t0 = ns.ProfBegin("ReadyCheck:START")
-        readyCheckActive = true
+        ns._setReadyCheckActive(true)
         for _, btn in ipairs(allButtons) do
             local u = btn:GetAttribute("unit")
             if u and btn:IsVisible() then UpdateReadyCheck(btn, u) end
@@ -7869,9 +7876,9 @@ local function OnEvent(self, event, arg1, ...)
         local btn = unitToButton[arg1] or ns._partyUnitToButton[arg1]
         if btn then UpdateReadyCheck(btn, arg1) end
     elseif event == "READY_CHECK_FINISHED" then
-        readyCheckActive = false
+        ns._setReadyCheckActive(false)
         C_Timer.After(5, function()
-            if not readyCheckActive then
+            if not ns._getReadyCheckActive() then
                 -- Re-evaluate rather than force-hide: a unit may have an incoming
                 -- summon active that shares the same texture.
                 for _, btn in ipairs(allButtons) do
