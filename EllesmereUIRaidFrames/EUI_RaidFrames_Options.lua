@@ -2240,7 +2240,7 @@ initFrame:SetScript("OnEvent", function(self)
             cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
             cogBtn:SetAlpha(0.4)
             local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
-            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.DIRECTIONS_ICON)
+            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.COGS_ICON)
             cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
             cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
             cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
@@ -2263,7 +2263,7 @@ initFrame:SetScript("OnEvent", function(self)
             cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
             cogBtn:SetAlpha(0.4)
             local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
-            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.DIRECTIONS_ICON)
+            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.COGS_ICON)
             cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
             cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
             cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
@@ -4495,7 +4495,7 @@ initFrame:SetScript("OnEvent", function(self)
                   disabledTooltip="Enable Targeted Spells",
                   getValue=function() return SVal("tsGrowDirection", "CENTER") end,
                   setValue=function(v) SSet("tsGrowDirection", v); TSApply() end });  y = y - h
-            -- Cog for targeted spells offset X/Y
+            -- Cog for targeted spells offset X/Y | Frame level dropdown
             do
                 local rgn = row._leftRegion
                 local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -4507,6 +4507,9 @@ initFrame:SetScript("OnEvent", function(self)
                         { type="slider", label="Offset Y", min=-50, max=50, step=1,
                           get=function() return SVal("tsOffsetY", 0) end,
                           set=function(v) SSet("tsOffsetY", v); TSApply() end },
+                        { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                          get=function() return SVal("tsLevel", "medium") end,
+                          set=function(v) SSet("tsLevel", v) end },
                     },
                 })
                 local cogBtn = CreateFrame("Button", nil, rgn)
