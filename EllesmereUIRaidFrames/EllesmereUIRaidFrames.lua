@@ -551,12 +551,13 @@ local defaults = {
         targetBorderAlpha = 1,
 
         -- Dispels
-        dispelBorderSize = 0,
-        dispelOverlay    = "fill",   -- "none", "fill", "full", "gradient"
-        dispelOverlayOpacity = 100,
-        dispelShowAll             = true,   -- true = highlight any dispellable debuff; false = only player-dispellable
-        dispelOverlayPosition     = 0,      -- 0=Top, 1=Bottom, 2=Left (aura-organization-type for private aura dispel container)
-        showDispelIcons       = false,
+        dispelBorderSize        = 0,
+        dispelOverlay           = "fill",   -- "none", "fill", "full", "gradient"
+        dispelOverlayOpacity    = 100,
+        dispelGradientDirection = "tb",  -- "tb", "bt", "lr", "rl"
+        dispelShowAll           = true,   -- true = highlight any dispellable debuff; false = only player-dispellable
+        dispelOverlayPosition   = 0,      -- 0=Top, 1=Bottom, 2=Left (aura-organization-type for private aura dispel container)
+        showDispelIcons    = false,
         dispelIconPosition = "right",
         dispelIconOffsetX  = 0,
         dispelIconOffsetY  = 0,
@@ -4278,15 +4279,14 @@ local function ApplyDispelOverlay(d, dc, s)
         end
         olTex:SetColorTexture(dc.r, dc.g, dc.b, alpha)
     elseif mode == "gradient" then
-        -- Pre-baked vertical gradient texture (solid at the top, fading to
-        -- transparent at the bottom) tinted with the dispel color. SetVertexColor
+        -- Pre-baked gradient texture tinted with the dispel color. SetVertexColor
         -- passes the (secret) dispel-type color through natively; the texture's own
         -- alpha supplies the fade. WHITE8X8 + SetGradient + CreateColor errors here
         -- because CreateColor cannot wrap a secret color value.
         if health then
             olTex:SetAllPoints(health)
         end
-        olTex:SetTexture("Interface\\AddOns\\EllesmereUI\\media\\textures\\gradient-tb.tga")
+        olTex:SetTexture("Interface\\AddOns\\EllesmereUI\\media\\textures\\gradient-" .. s.dispelGradientDirection .. ".tga")
         olTex:SetVertexColor(dc.r, dc.g, dc.b, alpha)
     end
     olTex:Show()
@@ -8424,7 +8424,7 @@ do
             "targetBorderEnabled", "targetBorderSize", "targetBorderColor", "targetBorderAlpha", "threatBorderSize",
         },
         dispels = {
-            "dispelBorderSize", "dispelOverlay", "dispelOverlayOpacity", "dispelShowAll",
+            "dispelBorderSize", "dispelOverlay", "dispelOverlayOpacity", "dispelGradientDirection", "dispelShowAll",
             "showDispelIcons", "dispelIconPosition", "dispelIconOffsetX", "dispelIconOffsetY",
             "dispelColorMagic", "dispelColorCurse", "dispelColorDisease",
             "dispelColorPoison", "dispelColorBleed",
@@ -11558,7 +11558,7 @@ local function ApplyPreviewData(f, index)
             elseif olMode == "gradient" then
                 -- Same pre-baked gradient texture as the live frames so the preview matches.
                 olTex:SetAllPoints(f._health)
-                olTex:SetTexture("Interface\\AddOns\\EllesmereUI\\media\\textures\\gradient-tb.tga")
+                olTex:SetTexture("Interface\\AddOns\\EllesmereUI\\media\\textures\\gradient-" ..  s.dispelGradientDirection .. ".tga")
                 olTex:SetVertexColor(dispelDC.r, dispelDC.g, dispelDC.b, olAlpha)
             end
             olTex:Show()

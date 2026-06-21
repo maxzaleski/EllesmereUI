@@ -2529,6 +2529,22 @@ initFrame:SetScript("OnEvent", function(self)
               getValue=function() return SVal("dispelOverlayOpacity", 100) end,
               setValue=function(v) SSet("dispelOverlayOpacity", v) end });  y = y - h
 
+        -- Row 1b: Gradient Direction (only visible when gradient mode is active)
+        local dispelGradientDirValues = {
+            tb = "Top → Bottom",
+            bt = "Bottom → Top",
+            lr = "Left → Right",
+            rl = "Right → Left",
+        }
+        local dispelGradientDirOrder = { "tb", "bt", "lr", "rl" }
+        _, h = W:DualRow(parent, y,
+            { type="dropdown", text="Gradient Direction",
+              values=dispelGradientDirValues, order=dispelGradientDirOrder,
+              disabled=function() return SVal("dispelOverlay", "fill") ~= "gradient" end,
+              disabledTooltip="Gradient Overlay",
+              getValue=function() return SVal("dispelGradientDirection", "tb") end,
+              setValue=function(v) SSet("dispelGradientDirection", v) end },
+            { type="spacer" });  y = y - h
 
         -- Row 2: Dispel Border Size | Dispel Icon Position (includes "None" to disable)
         local dispelIconPositionValues = {
