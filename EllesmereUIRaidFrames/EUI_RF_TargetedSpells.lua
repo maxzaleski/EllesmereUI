@@ -206,7 +206,7 @@ local function StyleIcon(icon)
     local k = raid and 1 or (ns._partyIndicatorScale or 1)
     local sz = Setting(raid, "IconSize", 24) * k
     icon:SetSize(sz, sz)
-    local clockBorderOn = Setting(raid, "ShowClockBorder", true)
+    local clockBorderOn = Setting(raid, "ShowClockBorder", false)
     if icon._borderFrame then
         if clockBorderOn then
             -- Clock ring replaces the static PP border; hide it to avoid visual clutter.
@@ -532,7 +532,7 @@ local function ShowFor(caster, matches, texture, durObj, endTimeMS, startTimeMS)
                 end
                 local timerCd = icon._timerCd
                 if timerCd then
-                    if Setting(raid, "ShowTimer", true)
+                    if Setting(raid, "ShowTimer", false)
                             and durObj and timerCd.SetCooldownFromDurationObject then
                         timerCd:SetCooldownFromDurationObject(durObj)
                         timerCd:SetAlpha(1)
@@ -544,7 +544,7 @@ local function ShowFor(caster, matches, texture, durObj, endTimeMS, startTimeMS)
                 end
                 local cr = icon._clockRing
                 if cr then
-                    if Setting(raid, "ShowClockBorder", true) then
+                    if Setting(raid, "ShowClockBorder", false) then
                         -- Read the user's colour here; it must be re-applied AFTER
                         -- SetCooldownFromDurationObject because that call resets the
                         -- swipe colour to the CooldownFrame default.

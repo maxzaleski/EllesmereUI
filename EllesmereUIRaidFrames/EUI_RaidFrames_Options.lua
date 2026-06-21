@@ -3415,10 +3415,10 @@ initFrame:SetScript("OnEvent", function(self)
                   tooltip="Draws an animated border around the icon that sweeps away as the cast progresses.",
                   disabled=function() return SVal("tsRaidMode", "never") == "never" end,
                   disabledTooltip="Enable Targeted Spells",
-                  getValue=function() return SVal("tsRaidShowClockBorder", true) end,
+                  getValue=function() return SVal("tsRaidShowClockBorder", false) end,
                   setValue=function(v) SSet("tsRaidShowClockBorder", v); TSApply() end },
                 { type="slider", text="Border Size", min=1, max=10, step=1,
-                  disabled=function() return SVal("tsRaidMode", "never") == "never" or not SVal("tsRaidShowClockBorder", true) end,
+                  disabled=function() return SVal("tsRaidMode", "never") == "never" or not SVal("tsRaidShowClockBorder", false) end,
                   disabledTooltip="Enable Clock Border",
                   getValue=function() return SVal("tsRaidClockBorderSize", 3) end,
                   setValue=function(v) SSet("tsRaidClockBorderSize", v); TSApply() end });  y = y - h
@@ -3439,7 +3439,7 @@ initFrame:SetScript("OnEvent", function(self)
                 swatch:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
                 rgn._lastInline = swatch
                 local function UpdateSwatchVis()
-                    local on = SVal("tsRaidMode", "never") ~= "never" and SVal("tsRaidShowClockBorder", true)
+                    local on = SVal("tsRaidMode", "never") ~= "never" and SVal("tsRaidShowClockBorder", false)
                     swatch:SetAlpha(on and 1 or 0.3)
                 end
                 EllesmereUI.RegisterWidgetRefresh(UpdateSwatchVis)
@@ -3451,14 +3451,14 @@ initFrame:SetScript("OnEvent", function(self)
                 { type="toggle", text="Show Duration Timer",
                   disabled=function() return SVal("tsRaidMode", "never") == "never" end,
                   disabledTooltip="Enable Targeted Spells",
-                  getValue=function() return SVal("tsRaidShowTimer", true) end,
+                  getValue=function() return SVal("tsRaidShowTimer", false) end,
                   setValue=function(v) SSet("tsRaidShowTimer", v); TSApply() end },
                 { type="label", text="" });  y = y - h
             -- Duration Timer: colour swatch + cog (inline on left region)
             do
                 local rgn = timerRaidRow._leftRegion
                 local timerDisabled = function()
-                    return SVal("tsRaidMode", "never") == "never" or not SVal("tsRaidShowTimer", true)
+                    return SVal("tsRaidMode", "never") == "never" or not SVal("tsRaidShowTimer", false)
                 end
                 local swatch = EllesmereUI.BuildColorSwatch(
                     rgn, rgn:GetFrameLevel() + 3,
@@ -4803,10 +4803,10 @@ initFrame:SetScript("OnEvent", function(self)
                   tooltip="Draws an animated border around the icon that sweeps away as the cast progresses.",
                   disabled=function() return SVal("tsMode", "whenHealing") == "never" end,
                   disabledTooltip="Enable Targeted Spells",
-                  getValue=function() return SVal("tsShowClockBorder", true) end,
+                  getValue=function() return SVal("tsShowClockBorder", false) end,
                   setValue=function(v) SSet("tsShowClockBorder", v); TSApply() end },
                 { type="slider", text="Border Size", min=1, max=10, step=1,
-                  disabled=function() return SVal("tsMode", "whenHealing") == "never" or not SVal("tsShowClockBorder", true) end,
+                  disabled=function() return SVal("tsMode", "whenHealing") == "never" or not SVal("tsShowClockBorder", false) end,
                   disabledTooltip="Enable Clock Border",
                   getValue=function() return SVal("tsClockBorderSize", 3) end,
                   setValue=function(v) SSet("tsClockBorderSize", v); TSApply() end });  y = y - h
@@ -4827,7 +4827,7 @@ initFrame:SetScript("OnEvent", function(self)
                 swatch:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
                 rgn._lastInline = swatch
                 local function UpdateSwatchVis()
-                    local on = SVal("tsMode", "whenHealing") ~= "never" and SVal("tsShowClockBorder", true)
+                    local on = SVal("tsMode", "whenHealing") ~= "never" and SVal("tsShowClockBorder", false)
                     swatch:SetAlpha(on and 1 or 0.3)
                 end
                 EllesmereUI.RegisterWidgetRefresh(UpdateSwatchVis)
@@ -4839,14 +4839,14 @@ initFrame:SetScript("OnEvent", function(self)
                 { type="toggle", text="Show Duration Timer",
                   disabled=function() return SVal("tsMode", "whenHealing") == "never" end,
                   disabledTooltip="Enable Targeted Spells",
-                  getValue=function() return SVal("tsShowTimer", true) end,
+                  getValue=function() return SVal("tsShowTimer", false) end,
                   setValue=function(v) SSet("tsShowTimer", v); TSApply() end },
                 { type="label", text="" });  y = y - h
             -- Duration Timer: colour swatch + cog (inline on left region)
             do
                 local rgn = timerPartyRow._leftRegion
                 local timerDisabled = function()
-                    return SVal("tsMode", "whenHealing") == "never" or not SVal("tsShowTimer", true)
+                    return SVal("tsMode", "whenHealing") == "never" or not SVal("tsShowTimer", false)
                 end
                 local swatch = EllesmereUI.BuildColorSwatch(
                     rgn, rgn:GetFrameLevel() + 3,
