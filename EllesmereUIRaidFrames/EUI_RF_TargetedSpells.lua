@@ -33,8 +33,10 @@ local type          = type
 local wipe          = wipe
 local lower         = string.lower
 local random        = math.random
+local floor         = math.floor
+local max           = math.max
 local issecret      = issecretvalue or function() return false end
-
+local WHITE_TEX     = "Interface\\Buttons\\WHITE8X8"
 -- Roster token lists per context. Units() picks the active one so the roster
 -- cache and classifier iterate raid1-40 in a raid and the party list otherwise.
 local ROSTER_UNITS = { "player", "party1", "party2", "party3", "party4" }
@@ -204,11 +206,36 @@ local function StyleIcon(icon)
     local k = raid and 1 or (ns._partyIndicatorScale or 1)
     local sz = Setting(raid, "IconSize", 24) * k
     icon:SetSize(sz, sz)
+    local clockBorderOn = Setting(raid, "ShowClockBorder", true)
     if icon._borderFrame then
-        local PP = EllesmereUI and (EllesmereUI.PanelPP or EllesmereUI.PP)
-        if PP and PP.UpdateBorder then
-            PP.UpdateBorder(icon._borderFrame, 1, 0, 0, 0, 1)
-            icon._borderFrame:Show()
+        if clockBorderOn then
+            -- Clock ring replaces the static PP border; hide it to avoid visual clutter.
+            icon._borderFrame:Hide()
+        else
+            local PP = EllesmereUI and (EllesmereUI.PanelPP or EllesmereUI.PP)
+            if PP and PP.UpdateBorder then
+                PP.UpdateBorder(icon._borderFrame, 1, 0, 0, 0, 1)
+                icon._borderFrame:Show()
+            end
+        end
+    end
+    if icon._clockRing then
+        -- Re-anchor whenever the icon is resized so the border pad scales correctly.
+        local bdrPad = max(2, floor(sz * 0.12))
+        icon._clockRing:ClearAllPoints()
+        icon._clockRing:SetPoint("TOPLEFT",     icon, "TOPLEFT",     -bdrPad,  bdrPad)
+        icon._clockRing:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT",  bdrPad, -bdrPad)
+        if icon._clockBg then
+            icon._clockBg:ClearAllPoints()
+            icon._clockBg:SetPoint("TOPLEFT",     icon, "TOPLEFT",     -bdrPad,  bdrPad)
+            icon._clockBg:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT",  bdrPad, -bdrPad)
+        end
+        if clockBorderOn then
+            local s = S()
+            local c = s and s[(raid and "tsRaid" or "ts") .. "ClockBorderColor"]
+            local r, g, b = c and c.r or 1, c and c.g or 1, c and c.b or 1
+            icon._clockRing:SetSwipeTexture(WHITE_TEX)
+            icon._clockRing:SetSwipeColor(r, g, b, 1)
         end
     end
 end
@@ -218,6 +245,11 @@ local function CreateIcon(btn, raid)
     icon._tsRaid = raid or false
     icon:SetFrameLevel(btn:GetFrameLevel() + 12)
     icon:Hide()
+
+    -- Solid black backdrop so spell-texture transparent edges look clean.
+    local iconBg = icon:CreateTexture(nil, "BACKGROUND")
+    iconBg:SetAllPoints()
+    iconBg:SetColorTexture(0, 0, 0, 1)
 
     local tex = icon:CreateTexture(nil, "ARTWORK")
     tex:SetAllPoints()
@@ -241,6 +273,39 @@ local function CreateIcon(btn, raid)
         PP.CreateBorder(bdr, 0, 0, 0, 1, 1)
     end
     icon._borderFrame = bdr
+
+    -- Square clock border: a CooldownFrame positioned 3 px outside the icon edges
+    -- so the standard pie-sweep is only visible in that border zone.  The spell
+    -- texture (a child of icon, rendered at a higher frame level) masks the interior,
+    -- so only the colored border depletes clock-style as the cast progresses.
+    -- SetReverse(false) = depleting: full border at cast start, empty at cast end.
+    local clockBdr = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
+    local BDR_PAD = 3
+    clockBdr:SetPoint("TOPLEFT",     icon, "TOPLEFT",     -BDR_PAD,  BDR_PAD)
+    clockBdr:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT",  BDR_PAD, -BDR_PAD)
+    clockBdr:SetFrameLevel(max(0, icon:GetFrameLevel() - 1))
+    clockBdr:SetHideCountdownNumbers(true)
+    clockBdr:SetDrawEdge(false)
+    clockBdr:SetDrawBling(false)
+    clockBdr:SetDrawSwipe(true)
+    clockBdr:SetReverse(false)
+    clockBdr:SetSwipeColor(1, 1, 1, 1)
+    clockBdr:SetSwipeTexture(WHITE_TEX)
+    -- Background lives on a separate frame below clockBdr so the Cooldown
+    -- swipe renders above it (WoW draws the swipe before standard textures
+    -- on the same frame, meaning a BACKGROUND texture on clockBdr itself
+    -- would cover the swipe).
+    local clockBg = CreateFrame("Frame", nil, icon)
+    clockBg:SetPoint("TOPLEFT",     icon, "TOPLEFT",     -BDR_PAD,  BDR_PAD)
+    clockBg:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT",  BDR_PAD, -BDR_PAD)
+    clockBg:SetFrameLevel(max(0, icon:GetFrameLevel() - 2))
+    local clockBgTex = clockBg:CreateTexture(nil, "BACKGROUND")
+    clockBgTex:SetAllPoints()
+    clockBgTex:SetColorTexture(0, 0, 0, 1)
+    clockBg:Hide()
+    icon._clockBg = clockBg
+    clockBdr:Hide()
+    icon._clockRing = clockBdr
 
     StyleIcon(icon)
     return icon
@@ -368,6 +433,8 @@ local function ClearCaster(caster)
             icon._cooldown:Clear()
             icon._cooldown:Hide()
         end
+        if icon._clockRing then icon._clockRing:Hide() end
+        if icon._clockBg then icon._clockBg:Hide() end
         touched[icon:GetParent()] = true
     end
     for btn in pairs(touched) do LayoutButton(btn) end
@@ -378,7 +445,7 @@ local function ClearAll()
     wipe(tracked)
 end
 
-local function ShowFor(caster, matches, texture, durObj)
+local function ShowFor(caster, matches, texture, durObj, endTimeMS, startTimeMS)
     -- Pick the active context's unit->button map. The classifier already
     -- produced tokens in this context (Units()), so they line up with the map.
     local raid = IsInRaid()
@@ -416,6 +483,52 @@ local function ShowFor(caster, matches, texture, durObj)
                     cd:Clear()
                     cd:Hide()
                 end
+                local cr = icon._clockRing
+                if cr then
+                    if Setting(raid, "ShowClockBorder", true) then
+                        -- Read the user's colour here; it must be re-applied AFTER
+                        -- SetCooldownFromDurationObject because that call resets the
+                        -- swipe colour to the CooldownFrame default.
+                        local s = S()
+                        local bc = s and s[(raid and "tsRaid" or "ts") .. "ClockBorderColor"]
+                        local br = bc and bc.r or 1
+                        local cg = bc and bc.g or 1
+                        local bb = bc and bc.b or 1
+                        -- Use durObj (same source as the face swipe) so the ring is
+                        -- immune to the cast timestamp taint that affects raw endTimeMS.
+                        if durObj and cr.SetCooldownFromDurationObject then
+                            cr:SetDrawSwipe(true)
+                            cr:SetCooldownFromDurationObject(durObj)
+                            cr:SetSwipeTexture(WHITE_TEX)
+                            cr:SetSwipeColor(br, cg, bb, 1)
+                            cr:SetAlpha(1)
+                            cr:Show()
+                            if icon._clockBg then icon._clockBg:Show() end
+                        elseif startTimeMS and endTimeMS
+                                and not issecret(startTimeMS) and not issecret(endTimeMS) then
+                            local sTime = startTimeMS / 1000
+                            local dur = (endTimeMS - startTimeMS) / 1000
+                            if dur > 0 then
+                                cr:SetDrawSwipe(true)
+                                cr:SetCooldown(sTime, dur)
+                                cr:SetSwipeTexture(WHITE_TEX)
+                                cr:SetSwipeColor(br, cg, bb, 1)
+                                cr:SetAlpha(1)
+                                cr:Show()
+                                if icon._clockBg then icon._clockBg:Show() end
+                            else
+                                cr:Clear(); cr:Hide()
+                                if icon._clockBg then icon._clockBg:Hide() end
+                            end
+                        else
+                            cr:Clear(); cr:Hide()
+                            if icon._clockBg then icon._clockBg:Hide() end
+                        end
+                    else
+                        cr:Clear(); cr:Hide()
+                        if icon._clockBg then icon._clockBg:Hide() end
+                    end
+                end
                 icon:Show()
                 LayoutButton(btn)
                 shownAny = true
@@ -433,10 +546,10 @@ local function Resolve(caster, myGen)
     if gen[caster] ~= myGen then return end
     -- Re-validate the cast is still running (assign-then-type-check: these
     -- return ZERO values when not casting)
-    local castName, _, texture = UnitCastingInfo(caster)
+    local castName, _, texture, startTimeMS, endTimeMS = UnitCastingInfo(caster)
     local channeling = false
     if type(castName) == "nil" then
-        castName, _, texture = UnitChannelInfo(caster)
+        castName, _, texture, startTimeMS, endTimeMS = UnitChannelInfo(caster)
         channeling = true
     end
     if type(castName) == "nil" then return end
@@ -478,7 +591,7 @@ local function Resolve(caster, myGen)
         for btn in pairs(touched) do LayoutButton(btn) end
     end
 
-    ShowFor(caster, matches, texture, durObj)
+    ShowFor(caster, matches, texture, durObj, endTimeMS, startTimeMS)
     local list = activeIcons[caster]
     if list then list.key = newKey end
     -- No per-cast cleanup timer: STOP/CHANNEL_STOP/INTERRUPTED/plate-removal
