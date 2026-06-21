@@ -436,6 +436,9 @@ initFrame:SetScript("OnEvent", function(self)
     }
     local sharedStrataScaleOrder = { "lowest", "low", "medium", "high", "highest" }
 
+    local borderLevelValues = sharedStrataScaleValues
+    local borderLevelOrder  = sharedStrataScaleOrder
+
     ---------------------------------------------------------------------------
     --  Health bar texture dropdown
     ---------------------------------------------------------------------------
@@ -1032,6 +1035,29 @@ initFrame:SetScript("OnEvent", function(self)
               setValue=function(v) SSet("threatBorderSize", v) end });  y = y - h
         ns._editTargets.threat = smoothThreatRow
         ns._editTargets.animateBars = smoothThreatRow
+        -- Cog: threatBorderLevel
+        do
+            local rgn = smoothThreatRow._rightRegion
+            local _, cogShow = EllesmereUI.BuildCogPopup({
+                title = "Threat Border",
+                rows = {
+                    { type="dropdown", label="Frame Level", values=borderLevelValues, order=borderLevelOrder,
+                      get=function() return SVal("threatBorderLevel", "medium") end,
+                      set=function(v) SSet("threatBorderLevel", v) end },
+                },
+            })
+            local cogBtn = CreateFrame("Button", nil, rgn)
+            cogBtn:SetSize(26, 26)
+            cogBtn:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = cogBtn
+            cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
+            cogBtn:SetAlpha(0.4)
+            local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
+            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.COGS_ICON)
+            cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
+            cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
+            cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+        end
 
         -------------------------------------------------------------------
         --  ABSORBS
@@ -2448,6 +2474,29 @@ initFrame:SetScript("OnEvent", function(self)
                   end
                   EllesmereUI:RefreshPage()
               end });  y = y - h
+        -- Cog: dispelBorderLevel
+        do
+            local rgn = row._leftRegion
+            local _, cogShow = EllesmereUI.BuildCogPopup({
+                title = "Dispel Border",
+                rows = {
+                    { type="dropdown", label="Frame Level", values=borderLevelValues, order=borderLevelOrder,
+                      get=function() return SVal("dispelBorderLevel", "high") end,
+                      set=function(v) SSet("dispelBorderLevel", v) end },
+                },
+            })
+            local cogBtn = CreateFrame("Button", nil, rgn)
+            cogBtn:SetSize(26, 26)
+            cogBtn:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = cogBtn
+            cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
+            cogBtn:SetAlpha(0.4)
+            local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
+            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.COGS_ICON)
+            cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
+            cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
+            cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+        end
         -- Cog for dispel icon offset X/Y
         do
             local rgn = row._rightRegion

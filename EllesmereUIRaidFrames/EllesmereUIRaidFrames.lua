@@ -512,6 +512,7 @@ local defaults = {
         summonPendingLevel = "low",
         showSummonPending  = true,
         threatBorderSize   = 2,    -- aggro warning border thickness; 0 = off
+        threatBorderLevel  = "medium",
         showLeaderIcon     = false,
         leaderIconSize     = 14,
         leaderIconLevel    = "low",
@@ -542,7 +543,8 @@ local defaults = {
         targetBorderAlpha = 1,
 
         -- Dispels
-        dispelBorderSize = 0,
+        dispelBorderSize  = 0,
+        dispelBorderLevel = "high",
         dispelOverlay    = "fill",   -- "none", "fill", "full", "gradient"
         dispelOverlayOpacity = 100,
         dispelShowAll        = true,   -- true = highlight any dispellable debuff; false = only player-dispellable
@@ -2089,7 +2091,7 @@ local function StyleButton(button)
     -- Threat border
     local threatFrame = CreateFrame("Frame", nil, button)
     threatFrame:SetAllPoints(button)
-    threatFrame:SetFrameLevel(button:GetFrameLevel() + 10)
+    threatFrame:SetFrameLevel(button:GetFrameLevel() + ns.FRAMELVL[s.threatBorderLevel])
     threatFrame:Hide()
     d.threatFrame = threatFrame
     if PP then PP.CreateBorder(threatFrame, 1, 0, 0, 1, 2) end
@@ -2097,10 +2099,18 @@ local function StyleButton(button)
     -- Dispel border (health bar only, not power bar)
     local dispelFrame = CreateFrame("Frame", nil, button)
     dispelFrame:SetAllPoints(health)
-    dispelFrame:SetFrameLevel(button:GetFrameLevel() + 10)
+    dispelFrame:SetFrameLevel(button:GetFrameLevel() + ns.FRAMELVL[s.dispelBorderLevel])
     dispelFrame:Hide()
     d.dispelFrame = dispelFrame
     if PP then PP.CreateBorder(dispelFrame, 0.2, 0.6, 1, 1, 2) end
+
+    local function UpdateBordersLevel()
+        local pl = button:GetFrameLevel()
+        if d.threatFrame then d.threatFrame:SetFrameLevel(pl + ns.FRAMELVL[s.threatBorderLevel]) end
+        if d.dispelFrame then d.dispelFrame:SetFrameLevel(pl + ns.FRAMELVL[s.dispelBorderLevel]) end
+    end
+    UpdateBordersLevel()
+    d.UpdateBordersLevel = UpdateBordersLevel
 
     -- Dispel overlay (fill / full / gradient)
     -- Texture on health bar at ARTWORK sublevel 3: above fill (0) AND above the
@@ -2450,6 +2460,14 @@ local function StyleButton(button)
     end
     UpdateIndicatorsLevel()
     d.UpdateIndicatorsLevel = UpdateIndicatorsLevel
+
+    local function UpdateBordersLevel()
+        local pl = button:GetFrameLevel()
+        if d.threatFrame then d.threatFrame:SetFrameLevel(pl + ns.FRAMELVL[s.threatBorderLevel]) end
+        if d.dispelFrame then d.dispelFrame:SetFrameLevel(pl + ns.FRAMELVL[s.dispelBorderLevel]) end
+    end
+    UpdateBordersLevel()
+    d.UpdateBordersLevel = UpdateBordersLevel
 
     -- Debuff icons (pre-created, anchored dynamically)
     d.debuffIcons = {}
@@ -6826,10 +6844,13 @@ local function ReloadFrames()
             d.raidMarker:SetSize(rmSz, rmSz)
             if d.AnchorRaidMarker then d.AnchorRaidMarker() end
         end
+
         if d.UpdateIndicatorsLevel then d.UpdateIndicatorsLevel() end
+        if d.UpdateBordersLevel    then d.UpdateBordersLevel()    end
 
         -- Border
         if d.UpdateBorder then d.UpdateBorder() end
+        if d.UpdateBordersLevel    then d.UpdateBordersLevel()    end
 
         -- Debuff size + position
         if d.debuffIcons then
@@ -8763,9 +8784,11 @@ ns.ReloadPartyFrames = function()
         end
 
         if d.UpdateIndicatorsLevel then d.UpdateIndicatorsLevel() end
+        if d.UpdateBordersLevel    then d.UpdateBordersLevel()    end
 
         -- Border
         if d.UpdateBorder then d.UpdateBorder() end
+        if d.UpdateBordersLevel    then d.UpdateBordersLevel()    end
 
         -- Debuff icons
         if d.debuffIcons then
@@ -10135,7 +10158,7 @@ local function CreatePreviewFrame(index)
     -- Threat border (aggro indicator)
     local threatFrame = CreateFrame("Frame", nil, f)
     threatFrame:SetAllPoints(f)
-    threatFrame:SetFrameLevel(f:GetFrameLevel() + 10)
+    threatFrame:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.threatBorderLevel])
     threatFrame:Hide()
     if PP then PP.CreateBorder(threatFrame, 1, 0, 0, 1, 2) end
 
@@ -10155,7 +10178,7 @@ local function CreatePreviewFrame(index)
     -- Dispel border
     local dispelBdrFrame = CreateFrame("Frame", nil, f)
     dispelBdrFrame:SetAllPoints(health)
-    dispelBdrFrame:SetFrameLevel(f:GetFrameLevel() + 10)
+    dispelBdrFrame:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.dispelBorderLevel])
     dispelBdrFrame:Hide()
     if PP then PP.CreateBorder(dispelBdrFrame, 0.2, 0.6, 1, 1, 2) end
 
@@ -11590,6 +11613,13 @@ local function ApplyPreviewData(f, index)
     if f._readyCheckCarrier    then f._readyCheckCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.readyCheckLevel])    end
     if f._summonPendingCarrier then f._summonPendingCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.summonPendingLevel]) end
     if f._leaderHost           then f._leaderHost:SetFrameLevel(fpl + ns.FRAMELVL[s.leaderIconLevel])           end
+    -- Borders (UpdateBordersLevel equivalent for preview frames)
+    if f._threatFrame    then f._threatFrame:SetFrameLevel(fpl + ns.FRAMELVL[s.threatBorderLevel])    end
+    if f._dispelBdrFrame then f._dispelBdrFrame:SetFrameLevel(fpl + ns.FRAMELVL[s.dispelBorderLevel]) end
+
+    -- Borders (UpdateBordersLevel equivalent for preview frames)
+    if f._threatFrame    then f._threatFrame:SetFrameLevel(fpl + ns.FRAMELVL[s.threatBorderLevel])    end
+    if f._dispelBdrFrame then f._dispelBdrFrame:SetFrameLevel(fpl + ns.FRAMELVL[s.dispelBorderLevel]) end
 
     f:Show()
 end
