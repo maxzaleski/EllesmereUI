@@ -4033,6 +4033,43 @@ initFrame:SetScript("OnEvent", function(self)
             UpdateHBSwatchVis()
         end
 
+        -- Hover Overlay: toggle + colour swatch (left) | Overlay Opacity slider (right)
+        local hoverOverlayRow
+        hoverOverlayRow, h = W:DualRow(parent, y,
+            { type="toggle", text="Hover Overlay",
+              tooltip="Overlay a tinted colour on the health bar while hovering the frame.",
+              getValue=function() return SVal("hoverOverlayEnabled", false) end,
+              setValue=function(v)
+                  SSet("hoverOverlayEnabled", v)
+                  ReloadAndUpdate()
+                  EllesmereUI:RefreshPage()
+              end },
+            { type="slider", text="Overlay Opacity", min=5, max=100, step=1,
+              disabled=function() return not SVal("hoverOverlayEnabled", false) end,
+              disabledTooltip="Hover Overlay",
+              getValue=function() return SVal("hoverOverlayOpacity", 30) end,
+              setValue=function(v) SSet("hoverOverlayOpacity", v); ReloadAndUpdate() end });  y = y - h
+        do
+            local rgn = hoverOverlayRow._leftRegion
+            local overlaySwatch, updOverlay = EllesmereUI.BuildColorSwatch(
+                rgn, hoverOverlayRow:GetFrameLevel() + 3,
+                function()
+                    local c = SGet("hoverOverlayColor") or { r = 1, g = 1, b = 1 }
+                    return c.r, c.g, c.b, 1
+                end,
+                function(r, g, b)
+                    SWrite("hoverOverlayColor", { r=r, g=g, b=b })
+                    ReloadAndUpdate()
+                end, false, 20)
+            overlaySwatch:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = overlaySwatch
+            local function UpdateOverlaySwatchVis()
+                overlaySwatch:SetAlpha(SVal("hoverOverlayEnabled", false) and 1 or 0.3)
+            end
+            EllesmereUI.RegisterWidgetRefresh(function() updOverlay(); UpdateOverlaySwatchVis() end)
+            UpdateOverlaySwatchVis()
+        end
+
         -------------------------------------------------------------------
         --  LAYOUT
         -------------------------------------------------------------------
