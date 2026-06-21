@@ -238,6 +238,26 @@ local function StyleIcon(icon)
             icon._clockRing:SetSwipeColor(r, g, b, 1)
         end
     end
+    if icon._timerCd then
+        local timerSz = Setting(raid, "TimerSize", 10)
+        local timerOffX = Setting(raid, "TimerOffsetX", 0)
+        local timerOffY = Setting(raid, "TimerOffsetY", 0)
+        icon._timerCd:ClearAllPoints()
+        icon._timerCd:SetSize(sz, sz)
+        icon._timerCd:SetPoint("CENTER", icon, "CENTER", timerOffX, timerOffY)
+        if icon._timerCdFS then
+            local face, _, flags = icon._timerCdFS:GetFont()
+            if face then
+                icon._timerCdFS:SetFont(face, timerSz, flags or "")
+            end
+            local s = S()
+            local tc = s and s[(raid and "tsRaid" or "ts") .. "TimerColor"]
+            local tr = tc and tc.r or 1
+            local tg_c = tc and tc.g or 1
+            local tb = tc and tc.b or 1
+            icon._timerCdFS:SetTextColor(tr, tg_c, tb)
+        end
+    end
 end
 
 local function CreateIcon(btn, raid)
@@ -306,6 +326,29 @@ local function CreateIcon(btn, raid)
     icon._clockBg = clockBg
     clockBdr:Hide()
     icon._clockRing = clockBdr
+
+    -- Timer: a CooldownFrameTemplate with the swipe hidden and the built-in
+    -- countdown numbers shown.  WoW's C code handles the secret timing values
+    -- from SetCooldownFromDurationObject internally, so no Lua arithmetic on
+    -- tainted values is needed.
+    local timerCd = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
+    timerCd:SetAllPoints()
+    timerCd:SetFrameLevel(icon:GetFrameLevel() + 3)
+    timerCd:SetHideCountdownNumbers(false)
+    timerCd:SetDrawEdge(false)
+    timerCd:SetDrawBling(false)
+    timerCd:SetDrawSwipe(false)
+    timerCd:SetReverse(false)
+    timerCd:Hide()
+    icon._timerCd = timerCd
+
+    -- Discover the countdown FontString so StyleIcon can recolour it.
+    for _, r in ipairs({timerCd:GetRegions()}) do
+        if r and r.GetObjectType and r:GetObjectType() == "FontString" then
+            icon._timerCdFS = r
+            break
+        end
+    end
 
     StyleIcon(icon)
     return icon
@@ -433,6 +476,10 @@ local function ClearCaster(caster)
             icon._cooldown:Clear()
             icon._cooldown:Hide()
         end
+        if icon._timerCd then
+            icon._timerCd:Clear()
+            icon._timerCd:Hide()
+        end
         if icon._clockRing then icon._clockRing:Hide() end
         if icon._clockBg then icon._clockBg:Hide() end
         touched[icon:GetParent()] = true
@@ -482,6 +529,18 @@ local function ShowFor(caster, matches, texture, durObj, endTimeMS, startTimeMS)
                 else
                     cd:Clear()
                     cd:Hide()
+                end
+                local timerCd = icon._timerCd
+                if timerCd then
+                    if Setting(raid, "ShowTimer", true)
+                            and durObj and timerCd.SetCooldownFromDurationObject then
+                        timerCd:SetCooldownFromDurationObject(durObj)
+                        timerCd:SetAlpha(1)
+                        timerCd:Show()
+                    else
+                        timerCd:Clear()
+                        timerCd:Hide()
+                    end
                 end
                 local cr = icon._clockRing
                 if cr then
