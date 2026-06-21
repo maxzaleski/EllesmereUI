@@ -1190,6 +1190,23 @@ initFrame:SetScript("OnEvent", function(self)
               end }
         );  y = y - h
 
+        _, h = W:DualRow(parent, y,
+            { type="toggle", text="Dungeon IO Overlay",
+              tooltip="Shows your M+ score contribution for each dungeon on the Mythic+ map selection screen, similar to RaiderIO.",
+              getValue=function()
+                  if not EllesmereUIDB then return true end
+                  return EllesmereUIDB.dungeonIOOverlay ~= false
+              end,
+              setValue=function(v)
+                  if not EllesmereUIDB then EllesmereUIDB = {} end
+                  EllesmereUIDB.dungeonIOOverlay = v
+                  if EllesmereUI._applyDungeonIOOverlay then
+                      EllesmereUI._applyDungeonIOOverlay()
+                  end
+              end },
+            { type="label", text="" }
+        );  y = y - h
+
         _, h = W:Spacer(parent, y, 20);  y = y - h
 
         ---------------------------------------------------------------------------
@@ -1301,12 +1318,14 @@ initFrame:SetScript("OnEvent", function(self)
                 EllesmereUIDB.autoRepairGuild = false
                 EllesmereUIDB.shifterEnabled = false
                 EllesmereUIDB.shifterPositions = nil
+                EllesmereUIDB.dungeonIOOverlay = nil  -- nil = default on (~= false)
             end
             EllesmereUIDB.autoLogging = nil
             if _G._EUI_ResetUpgradeCalc then _G._EUI_ResetUpgradeCalc() end
             if _G._EBS_ResetCursor then _G._EBS_ResetCursor() end
             if EllesmereUI._applyHideBlizzardPartyFrame then EllesmereUI._applyHideBlizzardPartyFrame() end
             if EllesmereUI._applyQuickSignup then EllesmereUI._applyQuickSignup() end
+            if EllesmereUI._applyDungeonIOOverlay then EllesmereUI._applyDungeonIOOverlay() end
             if EllesmereUI._applyPersistSignupNote then EllesmereUI._applyPersistSignupNote() end
             EllesmereUI:InvalidatePageCache()
         end,
