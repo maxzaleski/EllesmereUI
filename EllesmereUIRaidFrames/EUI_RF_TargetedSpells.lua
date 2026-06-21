@@ -221,7 +221,7 @@ local function StyleIcon(icon)
     end
     if icon._clockRing then
         -- Re-anchor whenever the icon is resized so the border pad scales correctly.
-        local bdrPad = max(2, floor(sz * 0.12))
+        local bdrPad = Setting(raid, "ClockBorderSize", 3)
         icon._clockRing:ClearAllPoints()
         icon._clockRing:SetPoint("TOPLEFT",     icon, "TOPLEFT",     -bdrPad,  bdrPad)
         icon._clockRing:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT",  bdrPad, -bdrPad)
