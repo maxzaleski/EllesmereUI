@@ -3412,6 +3412,7 @@ initFrame:SetScript("OnEvent", function(self)
             local cbRaidRow
             cbRaidRow, h = W:DualRow(parent, y,
                 { type="toggle", text="Clock Border",
+                  tooltip="Draws an animated border around the icon that sweeps away as the cast progresses.",
                   disabled=function() return SVal("tsRaidMode", "never") == "never" end,
                   disabledTooltip="Enable Targeted Spells",
                   getValue=function() return SVal("tsRaidShowClockBorder", true) end,
@@ -4799,6 +4800,7 @@ initFrame:SetScript("OnEvent", function(self)
             local cbPartyRow
             cbPartyRow, h = W:DualRow(parent, y,
                 { type="toggle", text="Clock Border",
+                  tooltip="Draws an animated border around the icon that sweeps away as the cast progresses.",
                   disabled=function() return SVal("tsMode", "whenHealing") == "never" end,
                   disabledTooltip="Enable Targeted Spells",
                   getValue=function() return SVal("tsShowClockBorder", true) end,
