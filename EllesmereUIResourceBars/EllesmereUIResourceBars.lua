@@ -4497,8 +4497,12 @@ BuildCastBar = function()
         castBarFrame._bg:SetColorTexture(cb.bgR, cb.bgG, cb.bgB, cb.bgA)
     end
 
+    -- Cache fill texture reference so ApplyCastFillColor can reach it reliably;
+    -- GetStatusBarTexture() returns nil when value=0 on an unrendered bar in TWW.
+    castBarFrame._fillTex = bar:GetStatusBarTexture()
+
     -- Bar color / gradient
-local fillTex = bar:GetStatusBarTexture()
+local fillTex = castBarFrame._fillTex
 
 if cb.gradientEnabled then
     local dir = cb.gradientDir or "HORIZONTAL"
@@ -4906,7 +4910,7 @@ end
 local function ApplyCastFillColor()
     if not castBarFrame or not castBarFrame._bar then return end
     local cb = ERB.db.profile.castBar
-    local fillTex = castBarFrame._bar:GetStatusBarTexture()
+    local fillTex = castBarFrame._fillTex or castBarFrame._bar:GetStatusBarTexture()
     if not fillTex then return end
 
     local pfx
