@@ -3686,6 +3686,9 @@ local function UpdateSecondaryResource()
             -- The StatusBar accepts the secret number natively; when the
             -- value falls within [i-1, i] the bar fills proportionally,
             -- giving us a binary active/inactive look for integer counts.
+            -- Threshold coloring via a second, threshold-colored
+            -- StatusBar overlay per pip.
+            local _useThresh = _tsEntry and _tsThreshCount and _tsThreshCount > 0
             for i = 1, maxC do
                 local pip = pips[i]
                 if pip and pip:IsShown() then
@@ -3706,6 +3709,31 @@ local function UpdateSecondaryResource()
                     pip._secretBar:SetValue(cur)
                     pip._secretBar:SetStatusBarColor(r, g, b, a)
                     pip._secretBar:Show()
+
+                    -- Threshold overlay (drawn on top of the base fill)
+                    -- Partial-only: pips below the threshold index never recolor.
+                    local showThresh = _useThresh and not (_tsPartialOnly and i < _tsThreshCount)
+                    if showThresh then
+                        if not pip._secretThreshBar then
+                            local tb = CreateFrame("StatusBar", nil, pip)
+                            tb:SetAllPoints(pip._fill)
+                            tb:SetStatusBarTexture(texPath)
+                            tb:SetFrameLevel(pip:GetFrameLevel() + 1)
+                            pip._secretThreshBar = tb
+                        else
+                            pip._secretThreshBar:SetStatusBarTexture(texPath)
+                        end
+                        -- Fills only when cur >= max(i, threshCount): the pip is
+                        -- active AND the threshold has been reached.
+                        local tlo = (i > _tsThreshCount) and i or _tsThreshCount
+                        pip._secretThreshBar:SetMinMaxValues(tlo - 1, tlo)
+                        pip._secretThreshBar:SetValue(cur)
+                        pip._secretThreshBar:SetStatusBarColor(_tsR or 1, _tsG or 0.2, _tsB or 0.2, a)
+                        pip._secretThreshBar:Show()
+                    elseif pip._secretThreshBar then
+                        pip._secretThreshBar:Hide()
+                    end
+
                     -- Hide the normal fill; the StatusBar replaces it
                     pip._fill:Hide()
                 end
@@ -4875,6 +4903,44 @@ local function HideLatencyOverlay()
     castBarFrame._latencySuffix = nil
 end
 
+local function ApplyCastFillColor()
+    if not castBarFrame or not castBarFrame._bar then return end
+    local cb = ERB.db.profile.castBar
+    local fillTex = castBarFrame._bar:GetStatusBarTexture()
+    if not fillTex then return end
+
+    local pfx
+    if     castBarFrame._notInterruptible then pfx = "uninterrupt"
+    elseif castBarFrame._channeling       then pfx = "channel" end
+
+    local fR, fG, fB, fA   = cb.fillR, cb.fillG, cb.fillB, cb.fillA
+    local gR, gG, gB, gA   = cb.gradientR, cb.gradientG, cb.gradientB, cb.gradientA
+    local classCol          = cb.classColored
+    local gradEnabled       = cb.gradientEnabled
+    local gradDir           = cb.gradientDir
+
+    if pfx then
+        if cb[pfx.."FillR"]          ~= nil then fR, fG, fB, fA = cb[pfx.."FillR"], cb[pfx.."FillG"], cb[pfx.."FillB"], cb[pfx.."FillA"] end
+        if cb[pfx.."GradientR"]      ~= nil then gR, gG, gB, gA = cb[pfx.."GradientR"], cb[pfx.."GradientG"], cb[pfx.."GradientB"], cb[pfx.."GradientA"] end
+        if cb[pfx.."ClassColored"]   ~= nil then classCol    = cb[pfx.."ClassColored"]   end
+        if cb[pfx.."GradientEnabled"] ~= nil then gradEnabled = cb[pfx.."GradientEnabled"] end
+        if cb[pfx.."GradientDir"]    ~= nil then gradDir     = cb[pfx.."GradientDir"]    end
+    end
+
+    if classCol then
+        local cc = CLASS_COLORS[cachedClass]
+        if cc then fR, fG, fB = cc[1], cc[2], cc[3] end
+    end
+    if gradEnabled then
+        fillTex:SetVertexColor(1, 1, 1, 1)
+        fillTex:SetGradient(gradDir or "HORIZONTAL",
+            CreateColor(fR, fG, fB, fA),
+            CreateColor(gR, gG, gB, gA))
+    else
+        fillTex:SetVertexColor(fR, fG, fB, fA)
+    end
+end
+
 OnCastStart = function()
     if not castBarFrame then return end
     local cb = ERB.db.profile.castBar
@@ -4886,6 +4952,7 @@ OnCastStart = function()
     castBarFrame._casting = true
     castBarFrame._channeling = false
     castBarFrame._empowering = false
+    castBarFrame._notInterruptible = notInterruptible
     castBarFrame._castID = barID
     castBarFrame._startTime = startTimeMS / 1000
     castBarFrame._endTime = endTimeMS / 1000
@@ -4915,6 +4982,7 @@ OnCastStart = function()
 
     if _latencyEventActive then ShowLatencyOverlay("cast") end
 
+    ApplyCastFillColor()
     castBarFrame:Show()
     EllesmereUI.SetElementVisibility(castBarFrame, true)
 end
@@ -4941,6 +5009,7 @@ OnChannelStart = function()
     castBarFrame._casting = false
     castBarFrame._channeling = true
     castBarFrame._empowering = false
+    castBarFrame._notInterruptible = notInterruptible
     castBarFrame._castID = channelCastID
     castBarFrame._startTime = startTimeMS / 1000
     castBarFrame._endTime = endTimeMS / 1000
@@ -4972,6 +5041,7 @@ OnChannelStart = function()
 
     if _latencyEventActive then ShowLatencyOverlay("channel") end
 
+    ApplyCastFillColor()
     castBarFrame:Show()
     EllesmereUI.SetElementVisibility(castBarFrame, true)
 end
@@ -5098,6 +5168,7 @@ OnEmpowerStart = function()
     castBarFrame._casting = false
     castBarFrame._channeling = false
     castBarFrame._empowering = true
+    castBarFrame._notInterruptible = notInterruptible
     castBarFrame._castID = empowerCastID
     castBarFrame._startTime = startTimeMS / 1000
     castBarFrame._endTime = endTimeMS / 1000
@@ -5171,6 +5242,7 @@ OnEmpowerStart = function()
         end
     end
 
+    ApplyCastFillColor()
     castBarFrame:Show()
     EllesmereUI.SetElementVisibility(castBarFrame, true)
 end
