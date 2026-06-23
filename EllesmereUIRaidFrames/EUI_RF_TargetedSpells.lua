@@ -844,6 +844,7 @@ local PV_TEX = { 135807, 136197 }  -- fireball / shadow bolt
 -- when an icon's random swipe expires, re-arm it with a fresh random duration.
 local function PreviewTick(icons)
     local now = GetTime()
+    local raid = IsInRaid()
     for i = 1, #icons do
         local icon = icons[i]
         if icon and icon._tsCaster and icon._cooldown then
@@ -852,6 +853,26 @@ local function PreviewTick(icons)
                 icon._pvExp = now + dur
                 icon._cooldown:SetCooldown(now, dur)
                 icon._cooldown:Show()
+                if icon._clockRing and Setting(raid, "ShowClockBorder", false) then
+                    local s = S()
+                    local c = s and s[(raid and "tsRaid" or "ts") .. "ClockBorderColor"]
+                    local r, g, b = c and c.r or 1, c and c.g or 1, c and c.b or 1
+                    icon._clockRing:SetDrawSwipe(true)
+                    icon._clockRing:SetCooldown(now, dur)
+                    icon._clockRing:SetSwipeTexture(WHITE_TEX)
+                    icon._clockRing:SetSwipeColor(r, g, b, 1)
+                    icon._clockRing:Show()
+                    if icon._clockBg then icon._clockBg:Show() end
+                elseif icon._clockRing then
+                    icon._clockRing:Hide()
+                    if icon._clockBg then icon._clockBg:Hide() end
+                end
+                if icon._timerCd and Setting(raid, "ShowTimer", false) then
+                    icon._timerCd:SetCooldown(now, dur)
+                    icon._timerCd:Show()
+                elseif icon._timerCd then
+                    icon._timerCd:Hide()
+                end
             end
         end
     end
