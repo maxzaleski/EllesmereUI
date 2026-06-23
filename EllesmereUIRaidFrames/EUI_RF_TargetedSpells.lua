@@ -250,6 +250,10 @@ local function StyleIcon(icon)
             if face then
                 icon._timerCdFS:SetFont(face, timerSz, flags or "")
             end
+            -- Re-anchor directly to the icon so Blizzard's template offset
+            -- and any accumulated pixel-snapping error are bypassed.
+            icon._timerCdFS:ClearAllPoints()
+            icon._timerCdFS:SetPoint("CENTER", icon, "CENTER", timerOffX, timerOffY)
             local s = S()
             local tc = s and s[(raid and "tsRaid" or "ts") .. "TimerColor"]
             local tr = tc and tc.r or 1
