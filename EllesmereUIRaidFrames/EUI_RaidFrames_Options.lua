@@ -3338,6 +3338,13 @@ initFrame:SetScript("OnEvent", function(self)
                   disabledTooltip="Enable Targeted Spells",
                   getValue=function() return SVal("tsRaidIconSize", 24) end,
                   setValue=function(v) SSet("tsRaidIconSize", v); TSApply() end });  y = y - h
+            row, h = W:DualRow(parent, y,
+                { type="label", text="" },
+                { type="slider", text="Icon Spacing", min=0, max=20, step=1,
+                  disabled=function() return SVal("tsRaidMode", "never") == "never" end,
+                  disabledTooltip="Enable Targeted Spells",
+                  getValue=function() return SVal("tsRaidIconSpacing", 2) end,
+                  setValue=function(v) SSet("tsRaidIconSpacing", v); TSApply() end });  y = y - h
 
             -- Row 2: Icon Position (+ cog for X/Y) | Growth Direction
             local tsPositionValues = {
@@ -4726,6 +4733,13 @@ initFrame:SetScript("OnEvent", function(self)
                   disabledTooltip="Enable Targeted Spells",
                   getValue=function() return SVal("tsIconSize", 24) end,
                   setValue=function(v) SSet("tsIconSize", v); TSApply() end });  y = y - h
+            row, h = W:DualRow(parent, y,
+                { type="label", text="" },
+                { type="slider", text="Icon Spacing", min=0, max=20, step=1,
+                  disabled=function() return SVal("tsMode", "whenHealing") == "never" end,
+                  disabledTooltip="Enable Targeted Spells",
+                  getValue=function() return SVal("tsIconSpacing", 2) end,
+                  setValue=function(v) SSet("tsIconSpacing", v); TSApply() end });  y = y - h
 
             -- Row 2: Icon Position (+ cog for X/Y) | Growth Direction
             local tsPositionValues = {

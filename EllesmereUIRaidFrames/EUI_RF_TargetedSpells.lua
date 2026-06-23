@@ -413,7 +413,7 @@ local function LayoutButton(btn)
     local ox = Setting(raid, "OffsetX", 0) * k
     local oy = Setting(raid, "OffsetY", 0) * k
     local anchor = btn._health or btn
-    local spc = 2 * k
+    local spc = Setting(raid, "IconSpacing", 2) * k
     local spacing = sz + spc
 
     local shown = 0
@@ -878,6 +878,30 @@ local function PreviewTick(icons)
     end
 end
 
+-- Shared 2-icon placement for previews. Mirrors LayoutButton for 2 shown
+-- icons so grow direction, spacing, and offsets all behave identically.
+local function PvPlaceIcons(icons, host, pos, ox, oy, sz, spc, grow)
+    local spacing = sz + spc
+    local centerOff = grow == "CENTER" and -spacing / 2 or 0
+    for i = 1, #icons do
+        icons[i]:ClearAllPoints()
+        if i == 1 then
+            Place(icons[i], host._health or host, pos, ox + centerOff, oy)
+        else
+            local prev = icons[i - 1]
+            if grow == "RIGHT" or grow == "CENTER" then
+                icons[i]:SetPoint("LEFT", prev, "RIGHT", spc, 0)
+            elseif grow == "LEFT" then
+                icons[i]:SetPoint("RIGHT", prev, "LEFT", -spc, 0)
+            elseif grow == "UP" then
+                icons[i]:SetPoint("BOTTOM", prev, "TOP", 0, spc)
+            else
+                icons[i]:SetPoint("TOP", prev, "BOTTOM", 0, -spc)
+            end
+        end
+    end
+end
+
 -- ---- Party preview --------------------------------------------------------
 local pvIcons = {}
 local pvTicker
@@ -911,34 +935,33 @@ function ns.TS_RefreshPreview()
         end
         return
     end
-    -- Preview mirrors the real frames 1:1: same scale factor, Place() anchor
-    -- and offsets.
+    -- Both icons are placed on the same host so icon spacing is visible.
     local k = ns._partyIndicatorScale or 1
     local pos = lower((s and s.tsPosition) or "center")
     local ox = ((s and s.tsOffsetX) or 0) * k
     local oy = ((s and s.tsOffsetY) or 0) * k
-    for i = 1, #PV_HOSTS do
-        local host = frames[PV_HOSTS[i]]
-        local icon = pvIcons[i]
-        if host then
-            if not icon or icon:GetParent() ~= host then
-                if icon then icon:Hide() end
-                icon = CreateIcon(host)
-                pvIcons[i] = icon
-            end
-            icon._tsCaster = "preview"
-            StyleIcon(icon)
-            icon._tex:SetTexture(PV_TEX[i])
-            icon:ClearAllPoints()
-            Place(icon, host._health or host, pos, ox, oy)
-            icon._pvExp = nil  -- force a fresh random swipe on next tick
-            icon:Show()
-        elseif icon then
-            icon._tsCaster = nil
-            icon._pvExp = nil
-            icon:Hide()
-        end
+    local sz = ((s and s.tsIconSize) or 24) * k
+    local spc = ((s and s.tsIconSpacing) or 2) * k
+    local grow = (s and s.tsGrowDirection) or "CENTER"
+    local host = frames[PV_HOSTS[1]]
+    if not host then
+        for i = 1, #pvIcons do if pvIcons[i] then pvIcons[i]:Hide() end end
+        return
     end
+    for i = 1, #PV_HOSTS do
+        local icon = pvIcons[i]
+        if not icon or icon:GetParent() ~= host then
+            if icon then icon:Hide() end
+            icon = CreateIcon(host)
+            pvIcons[i] = icon
+        end
+        icon._tsCaster = "preview"
+        StyleIcon(icon)
+        icon._tex:SetTexture(PV_TEX[i])
+        icon._pvExp = nil
+        icon:Show()
+    end
+    PvPlaceIcons(pvIcons, host, pos, ox, oy, sz, spc, grow)
     PvTick()
     if not pvTicker then
         pvTicker = C_Timer.NewTicker(0.5, PvTick)
@@ -982,32 +1005,33 @@ function ns.TS_RefreshRaidPreview()
         end
         return
     end
-    -- Raid icons do not auto-resize (factor 1), so offsets are used raw.
+    -- Both icons on the same host so icon spacing is visible. Raid icons do
+    -- not auto-resize (factor 1), so offsets and sizes are used raw.
     local pos = lower((s and s.tsRaidPosition) or "center")
     local ox = (s and s.tsRaidOffsetX) or 0
     local oy = (s and s.tsRaidOffsetY) or 0
-    for i = 1, #PV_HOSTS do
-        local host = frames[PV_HOSTS[i]]
-        local icon = rPvIcons[i]
-        if host then
-            if not icon or icon:GetParent() ~= host then
-                if icon then icon:Hide() end
-                icon = CreateIcon(host, true)
-                rPvIcons[i] = icon
-            end
-            icon._tsCaster = "preview"
-            StyleIcon(icon)
-            icon._tex:SetTexture(PV_TEX[i])
-            icon:ClearAllPoints()
-            Place(icon, host._health or host, pos, ox, oy)
-            icon._pvExp = nil
-            icon:Show()
-        elseif icon then
-            icon._tsCaster = nil
-            icon._pvExp = nil
-            icon:Hide()
-        end
+    local sz = (s and s.tsRaidIconSize) or 24
+    local spc = (s and s.tsRaidIconSpacing) or 2
+    local grow = (s and s.tsRaidGrowDirection) or "CENTER"
+    local host = frames[PV_HOSTS[1]]
+    if not host then
+        for i = 1, #rPvIcons do if rPvIcons[i] then rPvIcons[i]:Hide() end end
+        return
     end
+    for i = 1, #PV_HOSTS do
+        local icon = rPvIcons[i]
+        if not icon or icon:GetParent() ~= host then
+            if icon then icon:Hide() end
+            icon = CreateIcon(host, true)
+            rPvIcons[i] = icon
+        end
+        icon._tsCaster = "preview"
+        StyleIcon(icon)
+        icon._tex:SetTexture(PV_TEX[i])
+        icon._pvExp = nil
+        icon:Show()
+    end
+    PvPlaceIcons(rPvIcons, host, pos, ox, oy, sz, spc, grow)
     RPvTick()
     if not rPvTicker then
         rPvTicker = C_Timer.NewTicker(0.5, RPvTick)
