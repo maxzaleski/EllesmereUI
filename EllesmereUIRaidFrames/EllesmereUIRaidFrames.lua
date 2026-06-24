@@ -542,18 +542,22 @@ local defaults = {
         hoverBorderSize  = 1,
         hoverBorderColor = { r = 1, g = 1, b = 1 },
         hoverBorderAlpha = 1,
+        hoverOverlayEnabled = false,
+        hoverOverlayColor   = { r = 1, g = 1, b = 1 },
+        hoverOverlayOpacity = 30,
         targetBorderEnabled = true,
         targetBorderSize = 1,
         targetBorderColor = { r = 1, g = 1, b = 1 },
         targetBorderAlpha = 1,
 
         -- Dispels
-        dispelBorderSize = 0,
-        dispelOverlay    = "fill",   -- "none", "fill", "full", "gradient"
-        dispelOverlayOpacity = 100,
-        dispelShowAll             = true,   -- true = highlight any dispellable debuff; false = only player-dispellable
-        dispelOverlayPosition     = 0,      -- 0=Top, 1=Bottom, 2=Left (aura-organization-type for private aura dispel container)
-        showDispelIcons       = false,
+        dispelBorderSize        = 0,
+        dispelOverlay           = "fill",   -- "none", "fill", "full", "gradient"
+        dispelOverlayOpacity    = 100,
+        dispelGradientDirection = "tb",  -- "tb", "bt", "lr", "rl"
+        dispelShowAll           = true,   -- true = highlight any dispellable debuff; false = only player-dispellable
+        dispelOverlayPosition   = 0,      -- 0=Top, 1=Bottom, 2=Left (aura-organization-type for private aura dispel container)
+        showDispelIcons    = false,
         dispelIconPosition = "right",
         dispelIconOffsetX  = 0,
         dispelIconOffsetY  = 0,
@@ -2519,6 +2523,29 @@ local function StyleButton(button)
     d.dispelFrame = dispelFrame
     if PP then PP.CreateBorder(dispelFrame, 0.2, 0.6, 1, 1, 2) end
 
+
+    -- Hover overlay: semi-transparent colour tint shown while the cursor is over
+    -- the frame. At sublevel 1 it sits above the health fill but below the
+    -- BM overlay (2), dispel overlay (3), and all text/icons. Hidden by default;
+    -- shown/hidden from OnEnter/OnLeave via ApplyHoverOverlay.
+    local hoverOLTex = health:CreateTexture(nil, "ARTWORK", nil, 1)
+    hoverOLTex:SetTexture("Interface\\Buttons\\WHITE8X8")
+    hoverOLTex:SetAllPoints()
+    hoverOLTex:Hide()
+    d.hoverOLTex = hoverOLTex
+
+    local function ApplyHoverOverlay()
+        if d._hovered and s.hoverOverlayEnabled then
+            local c = s.hoverOverlayColor or { r = 1, g = 1, b = 1 }
+            hoverOLTex:SetColorTexture(c.r, c.g, c.b, (s.hoverOverlayOpacity or 30) / 100)
+            hoverOLTex:Show()
+        else
+            hoverOLTex:Hide()
+        end
+    end
+    d.ApplyHoverOverlay = ApplyHoverOverlay
+
+
     -- Dispel overlay (fill / full / gradient)
     -- Texture on health bar at ARTWORK sublevel 3: above fill (0) AND above the
     -- BM health-color overlay (sublevel 2), below absorb bars (child frames at
@@ -3206,6 +3233,7 @@ local function StyleButton(button)
     button:HookScript("OnEnter", function(self)
         local fd = GetFFD(self)
         fd._hovered = true
+        if fd.ApplyHoverOverlay then fd.ApplyHoverOverlay() end
         if fd.ApplyBorderColor then fd.ApplyBorderColor() end
         -- Read through the party-aware proxy (like every other render path), not
         -- raw db.profile -- otherwise party_<key> overrides written by a custom
@@ -3267,6 +3295,7 @@ local function StyleButton(button)
     button:HookScript("OnLeave", function(self)
         local fd = GetFFD(self)
         fd._hovered = false
+        if fd.ApplyHoverOverlay then fd.ApplyHoverOverlay() end
         if fd.ApplyBorderColor then fd.ApplyBorderColor() end
         GameTooltip:Hide()
     end)
@@ -4250,15 +4279,14 @@ local function ApplyDispelOverlay(d, dc, s)
         end
         olTex:SetColorTexture(dc.r, dc.g, dc.b, alpha)
     elseif mode == "gradient" then
-        -- Pre-baked vertical gradient texture (solid at the top, fading to
-        -- transparent at the bottom) tinted with the dispel color. SetVertexColor
+        -- Pre-baked gradient texture tinted with the dispel color. SetVertexColor
         -- passes the (secret) dispel-type color through natively; the texture's own
         -- alpha supplies the fade. WHITE8X8 + SetGradient + CreateColor errors here
         -- because CreateColor cannot wrap a secret color value.
         if health then
             olTex:SetAllPoints(health)
         end
-        olTex:SetTexture("Interface\\AddOns\\EllesmereUI\\media\\textures\\gradient-tb.tga")
+        olTex:SetTexture("Interface\\AddOns\\EllesmereUI\\media\\textures\\gradient-" .. s.dispelGradientDirection .. ".tga")
         olTex:SetVertexColor(dc.r, dc.g, dc.b, alpha)
     end
     olTex:Show()
@@ -8396,7 +8424,7 @@ do
             "targetBorderEnabled", "targetBorderSize", "targetBorderColor", "targetBorderAlpha", "threatBorderSize",
         },
         dispels = {
-            "dispelBorderSize", "dispelOverlay", "dispelOverlayOpacity", "dispelShowAll",
+            "dispelBorderSize", "dispelOverlay", "dispelOverlayOpacity", "dispelGradientDirection", "dispelShowAll",
             "showDispelIcons", "dispelIconPosition", "dispelIconOffsetX", "dispelIconOffsetY",
             "dispelColorMagic", "dispelColorCurse", "dispelColorDisease",
             "dispelColorPoison", "dispelColorBleed",
@@ -10530,9 +10558,28 @@ local function CreatePreviewFrame(index)
     end
     f._ApplyBorderColor = PvApplyBorderColor
 
+    -- Hover overlay must be declared before PvApplyHoverOverlay so the closure
+    -- captures it as an upvalue rather than resolving it as a (nil) global.
+    local hoverOLTex = health:CreateTexture(nil, "ARTWORK", nil, 1)
+    hoverOLTex:SetTexture("Interface\\Buttons\\WHITE8X8")
+    hoverOLTex:SetAllPoints()
+    hoverOLTex:Hide()
+
+    local function PvApplyHoverOverlay()
+        local s = ns._previewSettingsOverride or (ns._partyPvActive and ns._scaledPartyProxy) or ns._scaledProfile
+        if f._hovered and s.hoverOverlayEnabled then
+            local c = s.hoverOverlayColor or { r = 1, g = 1, b = 1 }
+            hoverOLTex:SetColorTexture(c.r, c.g, c.b, (s.hoverOverlayOpacity or 30) / 100)
+            hoverOLTex:Show()
+        else
+            hoverOLTex:Hide()
+        end
+    end
+    f._ApplyHoverOverlay = PvApplyHoverOverlay
+
     f:EnableMouse(true)
-    f:SetScript("OnEnter", function() f._hovered = true; PvApplyBorderColor() end)
-    f:SetScript("OnLeave", function() f._hovered = false; PvApplyBorderColor() end)
+    f:SetScript("OnEnter", function() f._hovered = true; PvApplyHoverOverlay(); PvApplyBorderColor() end)
+    f:SetScript("OnLeave", function() f._hovered = false; PvApplyHoverOverlay(); PvApplyBorderColor() end)
 
     -- Threat border (aggro indicator)
     local threatFrame = CreateFrame("Frame", nil, f)
@@ -10660,6 +10707,7 @@ local function CreatePreviewFrame(index)
     f._border = bdrFrame
     f._threatFrame = threatFrame
     f._dispelBdrFrame = dispelBdrFrame
+    f._hoverOLTex = hoverOLTex
     f._dispelOLTex = dispelOLTex
     f._dispelIcon = dispelIconFrame
     f._dispelIconTex = dispelIconTex
@@ -11454,6 +11502,7 @@ local function ApplyPreviewData(f, index)
             s.borderTexture or "solid", s.borderTextureOffset, s.borderTextureOffsetY,
             s.borderTextureShiftX, s.borderTextureShiftY, "unitframes", bs)
         if f._ApplyBorderColor then f._ApplyBorderColor() end
+        if f._ApplyHoverOverlay then f._ApplyHoverOverlay() end
     end
 
     -- Indicators visibility (eyeball toggle)
@@ -11509,7 +11558,7 @@ local function ApplyPreviewData(f, index)
             elseif olMode == "gradient" then
                 -- Same pre-baked gradient texture as the live frames so the preview matches.
                 olTex:SetAllPoints(f._health)
-                olTex:SetTexture("Interface\\AddOns\\EllesmereUI\\media\\textures\\gradient-tb.tga")
+                olTex:SetTexture("Interface\\AddOns\\EllesmereUI\\media\\textures\\gradient-" ..  s.dispelGradientDirection .. ".tga")
                 olTex:SetVertexColor(dispelDC.r, dispelDC.g, dispelDC.b, olAlpha)
             end
             olTex:Show()
