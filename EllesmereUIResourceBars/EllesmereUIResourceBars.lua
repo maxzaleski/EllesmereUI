@@ -4497,8 +4497,12 @@ BuildCastBar = function()
         castBarFrame._bg:SetColorTexture(cb.bgR, cb.bgG, cb.bgB, cb.bgA)
     end
 
+    -- Cache fill texture reference so ApplyCastFillColor can reach it reliably;
+    -- GetStatusBarTexture() returns nil when value=0 on an unrendered bar in TWW.
+    castBarFrame._fillTex = bar:GetStatusBarTexture()
+
     -- Bar color / gradient
-local fillTex = bar:GetStatusBarTexture()
+local fillTex = castBarFrame._fillTex
 
 if cb.gradientEnabled then
     local dir = cb.gradientDir or "HORIZONTAL"
@@ -4903,6 +4907,44 @@ local function HideLatencyOverlay()
     castBarFrame._latencySuffix = nil
 end
 
+local function ApplyCastFillColor()
+    if not castBarFrame or not castBarFrame._bar then return end
+    local cb = ERB.db.profile.castBar
+    local fillTex = castBarFrame._fillTex or castBarFrame._bar:GetStatusBarTexture()
+    if not fillTex then return end
+
+    local pfx
+    if     castBarFrame._notInterruptible then pfx = "uninterrupt"
+    elseif castBarFrame._channeling       then pfx = "channel" end
+
+    local fR, fG, fB, fA   = cb.fillR, cb.fillG, cb.fillB, cb.fillA
+    local gR, gG, gB, gA   = cb.gradientR, cb.gradientG, cb.gradientB, cb.gradientA
+    local classCol          = cb.classColored
+    local gradEnabled       = cb.gradientEnabled
+    local gradDir           = cb.gradientDir
+
+    if pfx then
+        if cb[pfx.."FillR"]          ~= nil then fR, fG, fB, fA = cb[pfx.."FillR"], cb[pfx.."FillG"], cb[pfx.."FillB"], cb[pfx.."FillA"] end
+        if cb[pfx.."GradientR"]      ~= nil then gR, gG, gB, gA = cb[pfx.."GradientR"], cb[pfx.."GradientG"], cb[pfx.."GradientB"], cb[pfx.."GradientA"] end
+        if cb[pfx.."ClassColored"]   ~= nil then classCol    = cb[pfx.."ClassColored"]   end
+        if cb[pfx.."GradientEnabled"] ~= nil then gradEnabled = cb[pfx.."GradientEnabled"] end
+        if cb[pfx.."GradientDir"]    ~= nil then gradDir     = cb[pfx.."GradientDir"]    end
+    end
+
+    if classCol then
+        local cc = CLASS_COLORS[cachedClass]
+        if cc then fR, fG, fB = cc[1], cc[2], cc[3] end
+    end
+    if gradEnabled then
+        fillTex:SetVertexColor(1, 1, 1, 1)
+        fillTex:SetGradient(gradDir or "HORIZONTAL",
+            CreateColor(fR, fG, fB, fA),
+            CreateColor(gR, gG, gB, gA))
+    else
+        fillTex:SetVertexColor(fR, fG, fB, fA)
+    end
+end
+
 OnCastStart = function()
     if not castBarFrame then return end
     local cb = ERB.db.profile.castBar
@@ -4914,6 +4956,7 @@ OnCastStart = function()
     castBarFrame._casting = true
     castBarFrame._channeling = false
     castBarFrame._empowering = false
+    castBarFrame._notInterruptible = notInterruptible
     castBarFrame._castID = barID
     castBarFrame._startTime = startTimeMS / 1000
     castBarFrame._endTime = endTimeMS / 1000
@@ -4943,6 +4986,7 @@ OnCastStart = function()
 
     if _latencyEventActive then ShowLatencyOverlay("cast") end
 
+    ApplyCastFillColor()
     castBarFrame:Show()
     EllesmereUI.SetElementVisibility(castBarFrame, true)
 end
@@ -4969,6 +5013,7 @@ OnChannelStart = function()
     castBarFrame._casting = false
     castBarFrame._channeling = true
     castBarFrame._empowering = false
+    castBarFrame._notInterruptible = notInterruptible
     castBarFrame._castID = channelCastID
     castBarFrame._startTime = startTimeMS / 1000
     castBarFrame._endTime = endTimeMS / 1000
@@ -5000,6 +5045,7 @@ OnChannelStart = function()
 
     if _latencyEventActive then ShowLatencyOverlay("channel") end
 
+    ApplyCastFillColor()
     castBarFrame:Show()
     EllesmereUI.SetElementVisibility(castBarFrame, true)
 end
@@ -5126,6 +5172,7 @@ OnEmpowerStart = function()
     castBarFrame._casting = false
     castBarFrame._channeling = false
     castBarFrame._empowering = true
+    castBarFrame._notInterruptible = notInterruptible
     castBarFrame._castID = empowerCastID
     castBarFrame._startTime = startTimeMS / 1000
     castBarFrame._endTime = endTimeMS / 1000
@@ -5199,6 +5246,7 @@ OnEmpowerStart = function()
         end
     end
 
+    ApplyCastFillColor()
     castBarFrame:Show()
     EllesmereUI.SetElementVisibility(castBarFrame, true)
 end
