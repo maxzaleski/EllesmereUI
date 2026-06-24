@@ -535,7 +535,8 @@ local function ShowFor(caster, matches, texture, durObj, endTimeMS, startTimeMS)
                     if Setting(raid, "ShowTimer", false)
                             and durObj and timerCd.SetCooldownFromDurationObject then
                         timerCd:SetCooldownFromDurationObject(durObj)
-                        -- Re-apply: SetCooldownFromDurationObject resets SetHideCountdownNumbers.
+                        -- Re-apply: SetCooldownFromDurationObject and Clear() reset SetDrawSwipe and SetHideCountdownNumbers.
+                        timerCd:SetDrawSwipe(false)
                         timerCd:SetHideCountdownNumbers(false)
                         timerCd:SetAlpha(1)
                         timerCd:Show()
@@ -868,6 +869,7 @@ local function PreviewTick(icons)
                 end
                 if icon._timerCd and Setting(raid, "ShowTimer", false) then
                     icon._timerCd:SetCooldown(now, dur)
+                    icon._timerCd:SetDrawSwipe(false)
                     icon._timerCd:SetHideCountdownNumbers(false)
                     icon._timerCd:Show()
                 elseif icon._timerCd then
