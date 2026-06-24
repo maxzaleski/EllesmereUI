@@ -1042,7 +1042,7 @@ initFrame:SetScript("OnEvent", function(self)
                 title = "Threat Border",
                 rows = {
                     { type="dropdown", label="Frame Level", values=borderLevelValues, order=borderLevelOrder,
-                      get=function() return SVal("threatBorderLevel", "medium") end,
+                      get=function() return SVal("threatBorderLevel", "high") end,
                       set=function(v) SSet("threatBorderLevel", v) end },
                 },
             })

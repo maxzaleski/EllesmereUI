@@ -512,7 +512,7 @@ local defaults = {
         summonPendingLevel = "low",
         showSummonPending  = true,
         threatBorderSize   = 2,    -- aggro warning border thickness; 0 = off
-        threatBorderLevel  = "medium",
+        threatBorderLevel  = "high",
         showLeaderIcon     = false,
         leaderIconSize     = 14,
         leaderIconLevel    = "low",
