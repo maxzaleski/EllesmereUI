@@ -33,8 +33,10 @@ local type          = type
 local wipe          = wipe
 local lower         = string.lower
 local random        = math.random
+local floor         = math.floor
+local max           = math.max
 local issecret      = issecretvalue or function() return false end
-
+local WHITE_TEX     = "Interface\\Buttons\\WHITE8X8"
 -- Roster token lists per context. Units() picks the active one so the roster
 -- cache and classifier iterate raid1-40 in a raid and the party list otherwise.
 local ROSTER_UNITS = { "player", "party1", "party2", "party3", "party4" }
@@ -213,11 +215,66 @@ local function StyleIcon(icon)
             icon._borderFrame:SetFrameLevel(icon:GetFrameLevel() + 1)
         end
     end
+    local clockBorderOn = Setting(raid, "ShowClockBorder", false)
     if icon._borderFrame then
-        local PP = EllesmereUI and (EllesmereUI.PanelPP or EllesmereUI.PP)
-        if PP and PP.UpdateBorder then
-            PP.UpdateBorder(icon._borderFrame, 1, 0, 0, 0, 1)
-            icon._borderFrame:Show()
+        if clockBorderOn then
+            -- Clock ring replaces the static PP border; hide it to avoid visual clutter.
+            icon._borderFrame:Hide()
+        else
+            local PP = EllesmereUI and (EllesmereUI.PanelPP or EllesmereUI.PP)
+            if PP and PP.UpdateBorder then
+                PP.UpdateBorder(icon._borderFrame, 1, 0, 0, 0, 1)
+                icon._borderFrame:Show()
+            end
+        end
+    end
+    if icon._clockRing then
+        if clockBorderOn then
+            -- Re-anchor to pick up any icon resize; skip when feature is off to avoid overhead for non-users.
+            local bdrPad = Setting(raid, "ClockBorderSize", 3)
+            icon._clockRing:ClearAllPoints()
+            icon._clockRing:SetPoint("TOPLEFT",     icon, "TOPLEFT",     -bdrPad,  bdrPad)
+            icon._clockRing:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT",  bdrPad, -bdrPad)
+            if icon._clockBg then
+                icon._clockBg:ClearAllPoints()
+                icon._clockBg:SetPoint("TOPLEFT",     icon, "TOPLEFT",     -bdrPad,  bdrPad)
+                icon._clockBg:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT",  bdrPad, -bdrPad)
+            end
+            local s = S()
+            local c = s and s[(raid and "tsRaid" or "ts") .. "ClockBorderColor"]
+            local r, g, b = c and c.r or 1, c and c.g or 1, c and c.b or 1
+            icon._clockRing:SetSwipeTexture(WHITE_TEX)
+            icon._clockRing:SetSwipeColor(r, g, b, 1)
+        else
+            icon._clockRing:Hide()
+            if icon._clockBg then icon._clockBg:Hide() end
+        end
+    end
+    if icon._timerCd then
+        if Setting(raid, "ShowTimer", false) then
+            local timerSz = Setting(raid, "TimerSize", 10)
+            local timerOffX = Setting(raid, "TimerOffsetX", 0)
+            local timerOffY = Setting(raid, "TimerOffsetY", 0)
+            icon._timerCd:ClearAllPoints()
+            icon._timerCd:SetSize(sz, sz)
+            icon._timerCd:SetPoint("CENTER", icon, "CENTER", timerOffX, timerOffY)
+            if icon._timerCdFS then
+                local face, _, flags = icon._timerCdFS:GetFont()
+                if face then
+                    icon._timerCdFS:SetFont(face, timerSz, flags or "")
+                end
+                -- Re-anchor directly to icon to bypass template pixel-snapping offset.
+                icon._timerCdFS:ClearAllPoints()
+                icon._timerCdFS:SetPoint("CENTER", icon, "CENTER", timerOffX, timerOffY)
+                local s = S()
+                local tc = s and s[(raid and "tsRaid" or "ts") .. "TimerColor"]
+                local tr = tc and tc.r or 1
+                local tg_c = tc and tc.g or 1
+                local tb = tc and tc.b or 1
+                icon._timerCdFS:SetTextColor(tr, tg_c, tb)
+            end
+        else
+            icon._timerCd:Hide()
         end
     end
 end
@@ -226,6 +283,11 @@ local function CreateIcon(btn, raid)
     local icon = CreateFrame("Frame", nil, btn)
     icon._tsRaid = raid or false
     icon:Hide()
+
+    -- Solid black backdrop so spell-texture transparent edges look clean.
+    local iconBg = icon:CreateTexture(nil, "BACKGROUND")
+    iconBg:SetAllPoints()
+    iconBg:SetColorTexture(0, 0, 0, 1)
 
     local tex = icon:CreateTexture(nil, "ARTWORK")
     tex:SetAllPoints()
@@ -249,6 +311,52 @@ local function CreateIcon(btn, raid)
         PP.CreateBorder(bdr, 0, 0, 0, 1, 1)
     end
     icon._borderFrame = bdr
+
+    -- CooldownFrame outside the icon; spell texture at a higher level masks the interior, leaving only the ring depleting clock-style.
+    local clockBdr = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
+    local BDR_PAD = 3
+    clockBdr:SetPoint("TOPLEFT",     icon, "TOPLEFT",     -BDR_PAD,  BDR_PAD)
+    clockBdr:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT",  BDR_PAD, -BDR_PAD)
+    clockBdr:SetFrameLevel(max(0, icon:GetFrameLevel() - 1))
+    clockBdr:SetHideCountdownNumbers(true)
+    clockBdr:SetDrawEdge(false)
+    clockBdr:SetDrawBling(false)
+    clockBdr:SetDrawSwipe(true)
+    clockBdr:SetReverse(false)
+    clockBdr:SetSwipeColor(1, 1, 1, 1)
+    clockBdr:SetSwipeTexture(WHITE_TEX)
+    -- Separate frame below clockBdr: WoW draws the swipe before standard textures on the same frame, so a BACKGROUND texture on clockBdr itself would cover the swipe.
+    local clockBg = CreateFrame("Frame", nil, icon)
+    clockBg:SetPoint("TOPLEFT",     icon, "TOPLEFT",     -BDR_PAD,  BDR_PAD)
+    clockBg:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT",  BDR_PAD, -BDR_PAD)
+    clockBg:SetFrameLevel(max(0, icon:GetFrameLevel() - 2))
+    local clockBgTex = clockBg:CreateTexture(nil, "BACKGROUND")
+    clockBgTex:SetAllPoints()
+    clockBgTex:SetColorTexture(0, 0, 0, 1)
+    clockBg:Hide()
+    icon._clockBg = clockBg
+    clockBdr:Hide()
+    icon._clockRing = clockBdr
+
+    -- CooldownFrame with swipe disabled and countdown numbers shown; SetCooldownFromDurationObject handles secret timing on the C side.
+    local timerCd = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
+    timerCd:SetAllPoints()
+    timerCd:SetFrameLevel(icon:GetFrameLevel() + 3)
+    timerCd:SetHideCountdownNumbers(false)
+    timerCd:SetDrawEdge(false)
+    timerCd:SetDrawBling(false)
+    timerCd:SetDrawSwipe(false)
+    timerCd:SetReverse(false)
+    timerCd:Hide()
+    icon._timerCd = timerCd
+
+    -- Discover the countdown FontString so StyleIcon can recolour it.
+    for _, r in ipairs({timerCd:GetRegions()}) do
+        if r and r.GetObjectType and r:GetObjectType() == "FontString" then
+            icon._timerCdFS = r
+            break
+        end
+    end
 
     StyleIcon(icon)
     return icon
@@ -313,7 +421,7 @@ local function LayoutButton(btn)
     local ox = Setting(raid, "OffsetX", 0) * k
     local oy = Setting(raid, "OffsetY", 0) * k
     local anchor = btn._health or btn
-    local spc = 2 * k
+    local spc = Setting(raid, "IconSpacing", 2) * k
     local spacing = sz + spc
 
     local shown = 0
@@ -376,6 +484,12 @@ local function ClearCaster(caster)
             icon._cooldown:Clear()
             icon._cooldown:Hide()
         end
+        if icon._timerCd then
+            icon._timerCd:Clear()
+            icon._timerCd:Hide()
+        end
+        if icon._clockRing then icon._clockRing:Hide() end
+        if icon._clockBg then icon._clockBg:Hide() end
         touched[icon:GetParent()] = true
     end
     for btn in pairs(touched) do LayoutButton(btn) end
@@ -386,7 +500,7 @@ local function ClearAll()
     wipe(tracked)
 end
 
-local function ShowFor(caster, matches, texture, durObj)
+local function ShowFor(caster, matches, texture, durObj, endTimeMS, startTimeMS)
     -- Pick the active context's unit->button map. The classifier already
     -- produced tokens in this context (Units()), so they line up with the map.
     local raid = IsInRaid()
@@ -424,6 +538,61 @@ local function ShowFor(caster, matches, texture, durObj)
                     cd:Clear()
                     cd:Hide()
                 end
+                local timerCd = icon._timerCd
+                if timerCd then
+                    if Setting(raid, "ShowTimer", false)
+                            and durObj and timerCd.SetCooldownFromDurationObject then
+                        timerCd:SetCooldownFromDurationObject(durObj)
+                        timerCd:SetAlpha(1)
+                        timerCd:Show()
+                    else
+                        timerCd:Clear()
+                        timerCd:Hide()
+                    end
+                end
+                local cr = icon._clockRing
+                if cr then
+                    if Setting(raid, "ShowClockBorder", false) then
+                        -- Colour must be re-applied after SetCooldownFromDurationObject, which resets the swipe colour.
+                        local s = S()
+                        local bc = s and s[(raid and "tsRaid" or "ts") .. "ClockBorderColor"]
+                        local br = bc and bc.r or 1
+                        local cg = bc and bc.g or 1
+                        local bb = bc and bc.b or 1
+                        -- Prefer durObj over raw endTimeMS/startTimeMS to avoid taint from secret cast timestamps.
+                        if durObj and cr.SetCooldownFromDurationObject then
+                            cr:SetDrawSwipe(true)
+                            cr:SetCooldownFromDurationObject(durObj)
+                            cr:SetSwipeTexture(WHITE_TEX)
+                            cr:SetSwipeColor(br, cg, bb, 1)
+                            cr:SetAlpha(1)
+                            cr:Show()
+                            if icon._clockBg then icon._clockBg:Show() end
+                        elseif startTimeMS and endTimeMS
+                                and not issecret(startTimeMS) and not issecret(endTimeMS) then
+                            local sTime = startTimeMS / 1000
+                            local dur = (endTimeMS - startTimeMS) / 1000
+                            if dur > 0 then
+                                cr:SetDrawSwipe(true)
+                                cr:SetCooldown(sTime, dur)
+                                cr:SetSwipeTexture(WHITE_TEX)
+                                cr:SetSwipeColor(br, cg, bb, 1)
+                                cr:SetAlpha(1)
+                                cr:Show()
+                                if icon._clockBg then icon._clockBg:Show() end
+                            else
+                                cr:Clear(); cr:Hide()
+                                if icon._clockBg then icon._clockBg:Hide() end
+                            end
+                        else
+                            cr:Clear(); cr:Hide()
+                            if icon._clockBg then icon._clockBg:Hide() end
+                        end
+                    else
+                        cr:Clear(); cr:Hide()
+                        if icon._clockBg then icon._clockBg:Hide() end
+                    end
+                end
                 icon:Show()
                 LayoutButton(btn)
                 shownAny = true
@@ -441,10 +610,10 @@ local function Resolve(caster, myGen)
     if gen[caster] ~= myGen then return end
     -- Re-validate the cast is still running (assign-then-type-check: these
     -- return ZERO values when not casting)
-    local castName, _, texture = UnitCastingInfo(caster)
+    local castName, _, texture, startTimeMS, endTimeMS = UnitCastingInfo(caster)
     local channeling = false
     if type(castName) == "nil" then
-        castName, _, texture = UnitChannelInfo(caster)
+        castName, _, texture, startTimeMS, endTimeMS = UnitChannelInfo(caster)
         channeling = true
     end
     if type(castName) == "nil" then return end
@@ -486,7 +655,7 @@ local function Resolve(caster, myGen)
         for btn in pairs(touched) do LayoutButton(btn) end
     end
 
-    ShowFor(caster, matches, texture, durObj)
+    ShowFor(caster, matches, texture, durObj, endTimeMS, startTimeMS)
     local list = activeIcons[caster]
     if list then list.key = newKey end
     -- No per-cast cleanup timer: STOP/CHANNEL_STOP/INTERRUPTED/plate-removal
@@ -680,6 +849,7 @@ local PV_TEX = { 135807, 136197 }  -- fireball / shadow bolt
 -- when an icon's random swipe expires, re-arm it with a fresh random duration.
 local function PreviewTick(icons)
     local now = GetTime()
+    local raid = IsInRaid()
     for i = 1, #icons do
         local icon = icons[i]
         if icon and icon._tsCaster and icon._cooldown then
@@ -688,6 +858,50 @@ local function PreviewTick(icons)
                 icon._pvExp = now + dur
                 icon._cooldown:SetCooldown(now, dur)
                 icon._cooldown:Show()
+                if icon._clockRing and Setting(raid, "ShowClockBorder", false) then
+                    local s = S()
+                    local c = s and s[(raid and "tsRaid" or "ts") .. "ClockBorderColor"]
+                    local r, g, b = c and c.r or 1, c and c.g or 1, c and c.b or 1
+                    icon._clockRing:SetDrawSwipe(true)
+                    icon._clockRing:SetCooldown(now, dur)
+                    icon._clockRing:SetSwipeTexture(WHITE_TEX)
+                    icon._clockRing:SetSwipeColor(r, g, b, 1)
+                    icon._clockRing:Show()
+                    if icon._clockBg then icon._clockBg:Show() end
+                elseif icon._clockRing then
+                    icon._clockRing:Hide()
+                    if icon._clockBg then icon._clockBg:Hide() end
+                end
+                if icon._timerCd and Setting(raid, "ShowTimer", false) then
+                    icon._timerCd:SetCooldown(now, dur)
+                    icon._timerCd:Show()
+                elseif icon._timerCd then
+                    icon._timerCd:Hide()
+                end
+            end
+        end
+    end
+end
+
+-- Shared 2-icon placement for previews. Mirrors LayoutButton for 2 shown
+-- icons so grow direction, spacing, and offsets all behave identically.
+local function PvPlaceIcons(icons, host, pos, ox, oy, sz, spc, grow)
+    local spacing = sz + spc
+    local centerOff = grow == "CENTER" and -spacing / 2 or 0
+    for i = 1, #icons do
+        icons[i]:ClearAllPoints()
+        if i == 1 then
+            Place(icons[i], host._health or host, pos, ox + centerOff, oy)
+        else
+            local prev = icons[i - 1]
+            if grow == "RIGHT" or grow == "CENTER" then
+                icons[i]:SetPoint("LEFT", prev, "RIGHT", spc, 0)
+            elseif grow == "LEFT" then
+                icons[i]:SetPoint("RIGHT", prev, "LEFT", -spc, 0)
+            elseif grow == "UP" then
+                icons[i]:SetPoint("BOTTOM", prev, "TOP", 0, spc)
+            else
+                icons[i]:SetPoint("TOP", prev, "BOTTOM", 0, -spc)
             end
         end
     end
@@ -726,34 +940,33 @@ function ns.TS_RefreshPreview()
         end
         return
     end
-    -- Preview mirrors the real frames 1:1: same scale factor, Place() anchor
-    -- and offsets.
+    -- Both icons are placed on the same host so icon spacing is visible.
     local k = ns._partyIndicatorScale or 1
     local pos = lower((s and s.tsPosition) or "center")
     local ox = ((s and s.tsOffsetX) or 0) * k
     local oy = ((s and s.tsOffsetY) or 0) * k
-    for i = 1, #PV_HOSTS do
-        local host = frames[PV_HOSTS[i]]
-        local icon = pvIcons[i]
-        if host then
-            if not icon or icon:GetParent() ~= host then
-                if icon then icon:Hide() end
-                icon = CreateIcon(host)
-                pvIcons[i] = icon
-            end
-            icon._tsCaster = "preview"
-            StyleIcon(icon)
-            icon._tex:SetTexture(PV_TEX[i])
-            icon:ClearAllPoints()
-            Place(icon, host._health or host, pos, ox, oy)
-            icon._pvExp = nil  -- force a fresh random swipe on next tick
-            icon:Show()
-        elseif icon then
-            icon._tsCaster = nil
-            icon._pvExp = nil
-            icon:Hide()
-        end
+    local sz = ((s and s.tsIconSize) or 24) * k
+    local spc = ((s and s.tsIconSpacing) or 2) * k
+    local grow = (s and s.tsGrowDirection) or "CENTER"
+    local host = frames[PV_HOSTS[1]]
+    if not host then
+        for i = 1, #pvIcons do if pvIcons[i] then pvIcons[i]:Hide() end end
+        return
     end
+    for i = 1, #PV_HOSTS do
+        local icon = pvIcons[i]
+        if not icon or icon:GetParent() ~= host then
+            if icon then icon:Hide() end
+            icon = CreateIcon(host)
+            pvIcons[i] = icon
+        end
+        icon._tsCaster = "preview"
+        StyleIcon(icon)
+        icon._tex:SetTexture(PV_TEX[i])
+        icon._pvExp = nil
+        icon:Show()
+    end
+    PvPlaceIcons(pvIcons, host, pos, ox, oy, sz, spc, grow)
     PvTick()
     if not pvTicker then
         pvTicker = C_Timer.NewTicker(0.5, PvTick)
@@ -797,32 +1010,33 @@ function ns.TS_RefreshRaidPreview()
         end
         return
     end
-    -- Raid icons do not auto-resize (factor 1), so offsets are used raw.
+    -- Both icons on the same host so icon spacing is visible. Raid icons do
+    -- not auto-resize (factor 1), so offsets and sizes are used raw.
     local pos = lower((s and s.tsRaidPosition) or "center")
     local ox = (s and s.tsRaidOffsetX) or 0
     local oy = (s and s.tsRaidOffsetY) or 0
-    for i = 1, #PV_HOSTS do
-        local host = frames[PV_HOSTS[i]]
-        local icon = rPvIcons[i]
-        if host then
-            if not icon or icon:GetParent() ~= host then
-                if icon then icon:Hide() end
-                icon = CreateIcon(host, true)
-                rPvIcons[i] = icon
-            end
-            icon._tsCaster = "preview"
-            StyleIcon(icon)
-            icon._tex:SetTexture(PV_TEX[i])
-            icon:ClearAllPoints()
-            Place(icon, host._health or host, pos, ox, oy)
-            icon._pvExp = nil
-            icon:Show()
-        elseif icon then
-            icon._tsCaster = nil
-            icon._pvExp = nil
-            icon:Hide()
-        end
+    local sz = (s and s.tsRaidIconSize) or 24
+    local spc = (s and s.tsRaidIconSpacing) or 2
+    local grow = (s and s.tsRaidGrowDirection) or "CENTER"
+    local host = frames[PV_HOSTS[1]]
+    if not host then
+        for i = 1, #rPvIcons do if rPvIcons[i] then rPvIcons[i]:Hide() end end
+        return
     end
+    for i = 1, #PV_HOSTS do
+        local icon = rPvIcons[i]
+        if not icon or icon:GetParent() ~= host then
+            if icon then icon:Hide() end
+            icon = CreateIcon(host, true)
+            rPvIcons[i] = icon
+        end
+        icon._tsCaster = "preview"
+        StyleIcon(icon)
+        icon._tex:SetTexture(PV_TEX[i])
+        icon._pvExp = nil
+        icon:Show()
+    end
+    PvPlaceIcons(rPvIcons, host, pos, ox, oy, sz, spc, grow)
     RPvTick()
     if not rPvTicker then
         rPvTicker = C_Timer.NewTicker(0.5, RPvTick)

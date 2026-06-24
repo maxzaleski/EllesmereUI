@@ -3479,18 +3479,84 @@ initFrame:SetScript("OnEvent", function(self)
                 end)
             end  -- close do (eyeball)
 
-            row, h = W:DualRow(parent, y,
+            local timerRaidRow
+            timerRaidRow, h = W:DualRow(parent, y,
                 { type="dropdown", text="Show Targeted Spells",
                   values={ never="Never", whenHealing="When Healing", always="Always" },
                   order={ "never", "whenHealing", "always" },
                   getValue=function() return SVal("tsRaidMode", "never") end,
                   setValue=function(v) SSet("tsRaidMode", v); TSApply(); EllesmereUI:RefreshPage() end },
+                { type="toggle", text="Duration Timer",
+                  disabled=function() return SVal("tsRaidMode", "never") == "never" end,
+                  disabledTooltip="Enable Targeted Spells",
+                  getValue=function() return SVal("tsRaidShowTimer", false) end,
+                  setValue=function(v) SSet("tsRaidShowTimer", v); TSApply() end });  y = y - h
+            -- Duration Timer: colour swatch + cog (inline on right region)
+            do
+                local rgn = timerRaidRow._rightRegion
+                local timerDisabled = function()
+                    return SVal("tsRaidMode", "never") == "never" or not SVal("tsRaidShowTimer", false)
+                end
+                local swatch = EllesmereUI.BuildColorSwatch(
+                    rgn, rgn:GetFrameLevel() + 3,
+                    function()
+                        local c = db.profile.tsRaidTimerColor
+                        if c then return c.r, c.g, c.b, 1 end
+                        return 1, 1, 1, 1
+                    end,
+                    function(r, g, b)
+                        db.profile.tsRaidTimerColor = { r=r, g=g, b=b }
+                        TSApply()
+                    end, false, 20)
+                swatch:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+                rgn._lastInline = swatch
+                local function UpdateTimerSwatchVis()
+                    swatch:SetAlpha(timerDisabled() and 0.15 or 1)
+                end
+                EllesmereUI.RegisterWidgetRefresh(UpdateTimerSwatchVis)
+                UpdateTimerSwatchVis()
+
+                local _, cogShow = EllesmereUI.BuildCogPopup({
+                    title = "Duration Timer",
+                    rows = {
+                        { type="slider", label="Text Size", min=6, max=26, step=1,
+                          get=function() return SVal("tsRaidTimerSize", 10) end,
+                          set=function(v) SSet("tsRaidTimerSize", v); TSApply() end },
+                        { type="slider", label="Offset X", min=-20, max=20, step=1,
+                          get=function() return SVal("tsRaidTimerOffsetX", 0) end,
+                          set=function(v) SSet("tsRaidTimerOffsetX", v); TSApply() end },
+                        { type="slider", label="Offset Y", min=-20, max=20, step=1,
+                          get=function() return SVal("tsRaidTimerOffsetY", 0) end,
+                          set=function(v) SSet("tsRaidTimerOffsetY", v); TSApply() end },
+                    },
+                })
+                local cogBtn = CreateFrame("Button", nil, rgn)
+                cogBtn:SetSize(26, 26)
+                cogBtn:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+                rgn._lastInline = cogBtn
+                cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
+                cogBtn:SetAlpha(timerDisabled() and 0.15 or 0.4)
+                local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
+                cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.RESIZE_ICON)
+                cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
+                cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(timerDisabled() and 0.15 or 0.4) end)
+                cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+                local function UpdateCogAlpha()
+                    cogBtn:SetAlpha(timerDisabled() and 0.15 or 0.4)
+                end
+                EllesmereUI.RegisterWidgetRefresh(UpdateCogAlpha)
+            end
+            row, h = W:DualRow(parent, y,
                 { type="slider", text="Icon Size", min=12, max=48, step=1,
                   disabled=function() return SVal("tsRaidMode", "never") == "never" end,
                   disabledTooltip="Enable Targeted Spells",
                   getValue=function() return SVal("tsRaidIconSize", 24) end,
-                  setValue=function(v) SSet("tsRaidIconSize", v); TSApply() end });  y = y - h
-
+                  setValue=function(v) SSet("tsRaidIconSize", v); TSApply() end },
+                { type="slider", text="Icon Spacing", min=0, max=20, step=1,
+                  disabled=function() return SVal("tsRaidMode", "never") == "never" end,
+                  disabledTooltip="Enable Targeted Spells",
+                  getValue=function() return SVal("tsRaidIconSpacing", 2) end,
+                  setValue=function(v) SSet("tsRaidIconSpacing", v); TSApply() end });  y = y - h
             -- Row 2: Icon Position (+ cog for X/Y) | Growth Direction
             local tsPositionValues = {
                 topleft     = "Top Left",
@@ -3562,6 +3628,44 @@ initFrame:SetScript("OnEvent", function(self)
                 cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
             end
 
+            -- Clock Border (left) + Show Duration Timer (right) on one row
+            -- Row 1: Clock Border toggle (+ colour swatch) | Border Size slider
+            local cbRaidRow
+            cbRaidRow, h = W:DualRow(parent, y,
+                { type="toggle", text="Clock Border",
+                  tooltip="Draws an animated border around the icon that sweeps away as the cast progresses.",
+                  disabled=function() return SVal("tsRaidMode", "never") == "never" end,
+                  disabledTooltip="Enable Targeted Spells",
+                  getValue=function() return SVal("tsRaidShowClockBorder", false) end,
+                  setValue=function(v) SSet("tsRaidShowClockBorder", v); TSApply() end },
+                { type="slider", text="Border Size", min=1, max=10, step=1,
+                  disabled=function() return SVal("tsRaidMode", "never") == "never" or not SVal("tsRaidShowClockBorder", false) end,
+                  disabledTooltip="Enable Clock Border",
+                  getValue=function() return SVal("tsRaidClockBorderSize", 3) end,
+                  setValue=function(v) SSet("tsRaidClockBorderSize", v); TSApply() end });  y = y - h
+            -- Clock Border colour swatch (inline on left region)
+            do
+                local rgn = cbRaidRow._leftRegion
+                local swatch = EllesmereUI.BuildColorSwatch(
+                    rgn, rgn:GetFrameLevel() + 3,
+                    function()
+                        local c = db.profile.tsRaidClockBorderColor
+                        if c then return c.r, c.g, c.b, 1 end
+                        return 1, 1, 1, 1
+                    end,
+                    function(r, g, b)
+                        db.profile.tsRaidClockBorderColor = { r=r, g=g, b=b }
+                        TSApply()
+                    end, false, 20)
+                swatch:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+                rgn._lastInline = swatch
+                local function UpdateSwatchVis()
+                    local on = SVal("tsRaidMode", "never") ~= "never" and SVal("tsRaidShowClockBorder", false)
+                    swatch:SetAlpha(on and 1 or 0.3)
+                end
+                EllesmereUI.RegisterWidgetRefresh(UpdateSwatchVis)
+                UpdateSwatchVis()
+            end
             _secY = y
         end
 
@@ -4767,18 +4871,84 @@ initFrame:SetScript("OnEvent", function(self)
                 end)
             end  -- close do (eyeball)
 
-            row, h = W:DualRow(parent, y,
+            local timerPartyRow
+            timerPartyRow, h = W:DualRow(parent, y,
                 { type="dropdown", text="Show Targeted Spells",
                   values={ never="Never", whenHealing="When Healing", always="Always" },
                   order={ "never", "whenHealing", "always" },
                   getValue=function() return SVal("tsMode", "whenHealing") end,
                   setValue=function(v) SSet("tsMode", v); TSApply(); EllesmereUI:RefreshPage() end },
+                { type="toggle", text="Duration Timer",
+                  disabled=function() return SVal("tsMode", "whenHealing") == "never" end,
+                  disabledTooltip="Enable Targeted Spells",
+                  getValue=function() return SVal("tsShowTimer", false) end,
+                  setValue=function(v) SSet("tsShowTimer", v); TSApply() end });  y = y - h
+            -- Duration Timer: colour swatch + cog (inline on right region, removed separate row)
+            do
+                local rgn = timerPartyRow._rightRegion
+                local timerDisabled = function()
+                    return SVal("tsMode", "whenHealing") == "never" or not SVal("tsShowTimer", false)
+                end
+                local swatch = EllesmereUI.BuildColorSwatch(
+                    rgn, rgn:GetFrameLevel() + 3,
+                    function()
+                        local c = db.profile.tsTimerColor
+                        if c then return c.r, c.g, c.b, 1 end
+                        return 1, 1, 1, 1
+                    end,
+                    function(r, g, b)
+                        db.profile.tsTimerColor = { r=r, g=g, b=b }
+                        TSApply()
+                    end, false, 20)
+                swatch:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+                rgn._lastInline = swatch
+                local function UpdateTimerSwatchVis()
+                    swatch:SetAlpha(timerDisabled() and 0.15 or 1)
+                end
+                EllesmereUI.RegisterWidgetRefresh(UpdateTimerSwatchVis)
+                UpdateTimerSwatchVis()
+                local _, cogShow = EllesmereUI.BuildCogPopup({
+                    title = "Duration Timer",
+                    rows = {
+                        { type="slider", label="Text Size", min=6, max=26, step=1,
+                          get=function() return SVal("tsTimerSize", 10) end,
+                          set=function(v) SSet("tsTimerSize", v); TSApply() end },
+                        { type="slider", label="Offset X", min=-20, max=20, step=1,
+                          get=function() return SVal("tsTimerOffsetX", 0) end,
+                          set=function(v) SSet("tsTimerOffsetX", v); TSApply() end },
+                        { type="slider", label="Offset Y", min=-20, max=20, step=1,
+                          get=function() return SVal("tsTimerOffsetY", 0) end,
+                          set=function(v) SSet("tsTimerOffsetY", v); TSApply() end },
+                    },
+                })
+                local cogBtn = CreateFrame("Button", nil, rgn)
+                cogBtn:SetSize(26, 26)
+                cogBtn:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+                rgn._lastInline = cogBtn
+                cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
+                cogBtn:SetAlpha(timerDisabled() and 0.15 or 0.4)
+                local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
+                cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.RESIZE_ICON)
+                cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
+                cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(timerDisabled() and 0.15 or 0.4) end)
+                cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+                local function UpdateCogAlpha()
+                    cogBtn:SetAlpha(timerDisabled() and 0.15 or 0.4)
+                end
+                EllesmereUI.RegisterWidgetRefresh(UpdateCogAlpha)
+            end
+
+            row, h = W:DualRow(parent, y,
                 { type="slider", text="Icon Size", min=12, max=48, step=1,
                   disabled=function() return SVal("tsMode", "whenHealing") == "never" end,
                   disabledTooltip="Enable Targeted Spells",
                   getValue=function() return SVal("tsIconSize", 24) end,
-                  setValue=function(v) SSet("tsIconSize", v); TSApply() end });  y = y - h
-
+                  setValue=function(v) SSet("tsIconSize", v); TSApply() end },
+                { type="slider", text="Icon Spacing", min=0, max=20, step=1,
+                  disabled=function() return SVal("tsMode", "whenHealing") == "never" end,
+                  disabledTooltip="Enable Targeted Spells",
+                  getValue=function() return SVal("tsIconSpacing", 2) end,
+                  setValue=function(v) SSet("tsIconSpacing", v); TSApply() end });  y = y - h
             -- Row 2: Icon Position (+ cog for X/Y) | Growth Direction
             local tsPositionValues = {
                 topleft     = "Top Left",
@@ -4848,6 +5018,45 @@ initFrame:SetScript("OnEvent", function(self)
                 cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
                 cogBtn:SetScript("OnLeave", function(self) self:SetAlpha((SVal("tsMode", "whenHealing") ~= "never") and 0.4 or 0.15) end)
                 cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+            end
+
+            -- Clock Border (left) + Show Duration Timer (right) on one row
+            -- Row 1: Clock Border toggle (+ colour swatch) | Border Size slider
+            local cbPartyRow
+            cbPartyRow, h = W:DualRow(parent, y,
+                { type="toggle", text="Clock Border",
+                  tooltip="Draws an animated border around the icon that sweeps away as the cast progresses.",
+                  disabled=function() return SVal("tsMode", "whenHealing") == "never" end,
+                  disabledTooltip="Enable Targeted Spells",
+                  getValue=function() return SVal("tsShowClockBorder", false) end,
+                  setValue=function(v) SSet("tsShowClockBorder", v); TSApply() end },
+                { type="slider", text="Border Size", min=1, max=10, step=1,
+                  disabled=function() return SVal("tsMode", "whenHealing") == "never" or not SVal("tsShowClockBorder", false) end,
+                  disabledTooltip="Enable Clock Border",
+                  getValue=function() return SVal("tsClockBorderSize", 3) end,
+                  setValue=function(v) SSet("tsClockBorderSize", v); TSApply() end });  y = y - h
+            -- Clock Border colour swatch (inline on left region)
+            do
+                local rgn = cbPartyRow._leftRegion
+                local swatch = EllesmereUI.BuildColorSwatch(
+                    rgn, rgn:GetFrameLevel() + 3,
+                    function()
+                        local c = db.profile.tsClockBorderColor
+                        if c then return c.r, c.g, c.b, 1 end
+                        return 1, 1, 1, 1
+                    end,
+                    function(r, g, b)
+                        db.profile.tsClockBorderColor = { r=r, g=g, b=b }
+                        TSApply()
+                    end, false, 20)
+                swatch:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+                rgn._lastInline = swatch
+                local function UpdateSwatchVis()
+                    local on = SVal("tsMode", "whenHealing") ~= "never" and SVal("tsShowClockBorder", false)
+                    swatch:SetAlpha(on and 1 or 0.3)
+                end
+                EllesmereUI.RegisterWidgetRefresh(UpdateSwatchVis)
+                UpdateSwatchVis()
             end
         end
 
