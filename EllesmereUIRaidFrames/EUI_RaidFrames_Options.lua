@@ -425,6 +425,21 @@ initFrame:SetScript("OnEvent", function(self)
     end
 
     ---------------------------------------------------------------------------
+    -- Shared frame level value tables (ns.FRAMELVL)
+    ---------------------------------------------------------------------------
+    local sharedStrataScaleValues = {
+      ["lowest"]  = "Lowest",
+      ["low"]     = "Low",
+      ["medium"]  = "Medium",
+      ["high"]    = "High",
+      ["highest"] = "Highest",
+    }
+    local sharedStrataScaleOrder = { "lowest", "low", "medium", "high", "highest" }
+
+    local borderLevelValues = sharedStrataScaleValues
+    local borderLevelOrder  = sharedStrataScaleOrder
+
+    ---------------------------------------------------------------------------
     --  Health bar texture dropdown
     ---------------------------------------------------------------------------
     -- Re-append SharedMedia textures now (post-login) so the dropdown includes
@@ -1065,6 +1080,29 @@ initFrame:SetScript("OnEvent", function(self)
               setValue=function(v) SSet("threatBorderSize", v) end });  y = y - h
         ns._editTargets.threat = smoothThreatRow
         ns._editTargets.animateBars = smoothThreatRow
+        -- Cog: threatBorderLevel
+        do
+            local rgn = smoothThreatRow._rightRegion
+            local _, cogShow = EllesmereUI.BuildCogPopup({
+                title = "Threat Border",
+                rows = {
+                    { type="dropdown", label="Frame Level", values=borderLevelValues, order=borderLevelOrder,
+                      get=function() return SVal("threatBorderLevel", "high") end,
+                      set=function(v) SSet("threatBorderLevel", v) end },
+                },
+            })
+            local cogBtn = CreateFrame("Button", nil, rgn)
+            cogBtn:SetSize(26, 26)
+            cogBtn:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = cogBtn
+            cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
+            cogBtn:SetAlpha(0.4)
+            local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
+            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.COGS_ICON)
+            cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
+            cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
+            cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+        end
 
         -------------------------------------------------------------------
         --  ABSORBS
@@ -1829,7 +1867,7 @@ initFrame:SetScript("OnEvent", function(self)
             { type="dropdown", text="Health Text", values=healthTextValues, order=healthTextOrder,
               getValue=function() return SVal("healthTextMode", "none") end,
               setValue=function(v) SSet("healthTextMode", v) end });  y = y - h
-        -- Cog for name offset X/Y
+        -- Cog for name offset X/Y | Frame level dropdown
         do
             local rgn = row._leftRegion
             local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -1841,6 +1879,9 @@ initFrame:SetScript("OnEvent", function(self)
                     { type="slider", label="Offset Y", min=-50, max=50, step=1,
                       get=function() return SVal("nameOffsetY", 0) end,
                       set=function(v) SSet("nameOffsetY", v) end },
+                   { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("nameLevel", "lowest") end,
+                      set=function(v) SSet("nameLevel", v) end },
                 },
             })
             local cogBtn = CreateFrame("Button", nil, rgn)
@@ -1930,7 +1971,7 @@ initFrame:SetScript("OnEvent", function(self)
               disabledTooltip="Health Text",
               getValue=function() return SVal("healthTextSize", 9) end,
               setValue=function(v) SSet("healthTextSize", v) end });  y = y - h
-        -- Cog for health text offset X/Y
+        -- Cog for health text offset X/Y | Frame level dropdown
         do
             local rgn = row._leftRegion
             local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -1942,6 +1983,9 @@ initFrame:SetScript("OnEvent", function(self)
                     { type="slider", label="Offset Y", min=-50, max=50, step=1,
                       get=function() return SVal("healthTextOffsetY", 0) end,
                       set=function(v) SSet("healthTextOffsetY", v) end },
+                   { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("healthTextLevel", "lowest") end,
+                      set=function(v) SSet("healthTextLevel", v) end },
                 },
             })
             local cogBtn = CreateFrame("Button", nil, rgn)
@@ -2164,7 +2208,7 @@ initFrame:SetScript("OnEvent", function(self)
               disabledTooltip="Role Icons",
               getValue=function() return SVal("roleIconSize", 14) end,
               setValue=function(v) SSet("roleIconSize", v) end });  y = y - h
-        -- Cog for role icon offset X/Y
+        -- Cog for role icon offset X/Y | frame level dropdown
         do
             local rgn = roleRow2._leftRegion
             local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -2176,6 +2220,9 @@ initFrame:SetScript("OnEvent", function(self)
                     { type="slider", label="Offset Y", min=-50, max=50, step=1,
                       get=function() return SVal("roleIconOffsetY", 0) end,
                       set=function(v) SSet("roleIconOffsetY", v) end },
+                    { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("roleIconLevel", "low") end,
+                      set=function(v) SSet("roleIconLevel", v) end },
                 },
             })
             local cogBtn = CreateFrame("Button", nil, rgn)
@@ -2226,7 +2273,7 @@ initFrame:SetScript("OnEvent", function(self)
               getValue=function() return SVal("raidMarkerSize", 16) end,
               setValue=function(v) SSet("raidMarkerSize", v) end });  y = y - h
 
-        -- Cog for marker offset X/Y
+        -- Cog for marker offset X/Y | Frame level dropdown
         do
             local rgn = row._leftRegion
             local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -2238,6 +2285,10 @@ initFrame:SetScript("OnEvent", function(self)
                     { type="slider", label="Offset Y", min=-50, max=50, step=1,
                       get=function() return SVal("raidMarkerOffsetY", 0) end,
                       set=function(v) SSet("raidMarkerOffsetY", v) end },
+                    { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("raidMarkerLevel", "highest") end,
+                      set=function(v) SSet("raidMarkerLevel", v) end },
+
                 },
             })
             local cogBtn = CreateFrame("Button", nil, rgn)
@@ -2275,7 +2326,7 @@ initFrame:SetScript("OnEvent", function(self)
             { type="slider", text="Text Size", min=6, max=30, step=1,
               getValue=function() return SVal("statusTextSize", 14) end,
               setValue=function(v) SSet("statusTextSize", v) end });  y = y - h
-        -- Cog for status text offset X/Y
+        -- Cog for status text offset X/Y | Frame level dropdown
         do
             local rgn = stRow._leftRegion
             local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -2290,6 +2341,9 @@ initFrame:SetScript("OnEvent", function(self)
                     { type="slider", label="Offset Y", min=-50, max=50, step=1,
                       get=function() return SVal("statusTextOffsetY", 0) end,
                       set=function(v) SSet("statusTextOffsetY", v) end },
+                    { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("statusTextLevel", "low") end,
+                      set=function(v) SSet("statusTextLevel", v) end },
                 },
             })
             local cogBtn = CreateFrame("Button", nil, rgn)
@@ -2356,7 +2410,7 @@ initFrame:SetScript("OnEvent", function(self)
               disabledTooltip="Leader Icon",
               getValue=function() return SVal("leaderIconSize", 14) end,
               setValue=function(v) SSet("leaderIconSize", v) end });  y = y - h
-        -- Cog for leader icon offset X/Y
+        -- Cog for leader icon offset X/Y | Frame level dropdown
         do
             local rgn = row._leftRegion
             local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -2368,6 +2422,9 @@ initFrame:SetScript("OnEvent", function(self)
                     { type="slider", label="Offset Y", min=-50, max=50, step=1,
                       get=function() return SVal("leaderIconOffsetY", 0) end,
                       set=function(v) SSet("leaderIconOffsetY", v) end },
+                    { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("leaderIconLevel", "low") end,
+                      set=function(v) SSet("leaderIconLevel", v) end },
                 },
             })
             local cogBtn = CreateFrame("Button", nil, rgn)
@@ -2378,6 +2435,62 @@ initFrame:SetScript("OnEvent", function(self)
             cogBtn:SetAlpha(0.4)
             local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
             cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.DIRECTIONS_ICON)
+            cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
+            cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
+            cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+        end
+
+        -- Show Ready Check | Show Summon Pending
+        local rcRow
+        rcRow, h = W:DualRow(parent, y,
+            { type="toggle", text="Show Ready Check",
+              getValue=function() return SVal("showReadyCheck", true) end,
+              setValue=function(v) SSet("showReadyCheck", v) end },
+            { type="toggle", text="Show Summon Pending",
+              getValue=function() return SVal("showSummonPending", true) end,
+              setValue=function(v) SSet("showSummonPending", v) end });  y = y - h
+        -- Cog: readyCheckLevel
+        do
+            local rgn = rcRow._leftRegion
+            local _, cogShow = EllesmereUI.BuildCogPopup({
+                title = "Ready Check",
+                rows = {
+                    { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("readyCheckLevel", "low") end,
+                      set=function(v) SSet("readyCheckLevel", v) end },
+                },
+            })
+            local cogBtn = CreateFrame("Button", nil, rgn)
+            cogBtn:SetSize(26, 26)
+            cogBtn:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = cogBtn
+            cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
+            cogBtn:SetAlpha(0.4)
+            local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
+            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.COGS_ICON)
+            cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
+            cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
+            cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+        end
+        -- Cog: summonPendingLevel
+        do
+            local rgn = rcRow._rightRegion
+            local _, cogShow = EllesmereUI.BuildCogPopup({
+                title = "Summon Pending",
+                rows = {
+                    { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("summonPendingLevel", "low") end,
+                      set=function(v) SSet("summonPendingLevel", v) end },
+                },
+            })
+            local cogBtn = CreateFrame("Button", nil, rgn)
+            cogBtn:SetSize(26, 26)
+            cogBtn:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = cogBtn
+            cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
+            cogBtn:SetAlpha(0.4)
+            local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
+            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.COGS_ICON)
             cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
             cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
             cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
@@ -2578,6 +2691,29 @@ initFrame:SetScript("OnEvent", function(self)
                   end
                   EllesmereUI:RefreshPage()
               end });  y = y - h
+        -- Cog: dispelBorderLevel
+        do
+            local rgn = row._leftRegion
+            local _, cogShow = EllesmereUI.BuildCogPopup({
+                title = "Dispel Border",
+                rows = {
+                    { type="dropdown", label="Frame Level", values=borderLevelValues, order=borderLevelOrder,
+                      get=function() return SVal("dispelBorderLevel", "high") end,
+                      set=function(v) SSet("dispelBorderLevel", v) end },
+                },
+            })
+            local cogBtn = CreateFrame("Button", nil, rgn)
+            cogBtn:SetSize(26, 26)
+            cogBtn:SetPoint("RIGHT", rgn._lastInline or rgn._control, "LEFT", -8, 0)
+            rgn._lastInline = cogBtn
+            cogBtn:SetFrameLevel(rgn:GetFrameLevel() + 5)
+            cogBtn:SetAlpha(0.4)
+            local cogTex = cogBtn:CreateTexture(nil, "OVERLAY")
+            cogTex:SetAllPoints(); cogTex:SetTexture(EllesmereUI.COGS_ICON)
+            cogBtn:SetScript("OnEnter", function(self) self:SetAlpha(0.7) end)
+            cogBtn:SetScript("OnLeave", function(self) self:SetAlpha(0.4) end)
+            cogBtn:SetScript("OnClick", function(self) cogShow(self) end)
+        end
         -- Cog for dispel icon offset X/Y
         do
             local rgn = row._rightRegion
@@ -3396,7 +3532,7 @@ initFrame:SetScript("OnEvent", function(self)
                   disabledTooltip="Enable Targeted Spells",
                   getValue=function() return SVal("tsRaidGrowDirection", "CENTER") end,
                   setValue=function(v) SSet("tsRaidGrowDirection", v); TSApply() end });  y = y - h
-            -- Cog for targeted spells offset X/Y
+            -- Cog for targeted spells offset X/Y | Frame level dropdown
             do
                 local rgn = row._leftRegion
                 local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -3408,6 +3544,9 @@ initFrame:SetScript("OnEvent", function(self)
                         { type="slider", label="Offset Y", min=-50, max=50, step=1,
                           get=function() return SVal("tsRaidOffsetY", 0) end,
                           set=function(v) SSet("tsRaidOffsetY", v); TSApply() end },
+                        { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                          get=function() return SVal("tsLevel", "medium") end,
+                          set=function(v) SSet("tsLevel", v) end },
                     },
                 })
                 local cogBtn = CreateFrame("Button", nil, rgn)
@@ -4681,7 +4820,7 @@ initFrame:SetScript("OnEvent", function(self)
                   disabledTooltip="Enable Targeted Spells",
                   getValue=function() return SVal("tsGrowDirection", "CENTER") end,
                   setValue=function(v) SSet("tsGrowDirection", v); TSApply() end });  y = y - h
-            -- Cog for targeted spells offset X/Y
+            -- Cog for targeted spells offset X/Y | Frame level dropdown
             do
                 local rgn = row._leftRegion
                 local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -4693,6 +4832,9 @@ initFrame:SetScript("OnEvent", function(self)
                         { type="slider", label="Offset Y", min=-50, max=50, step=1,
                           get=function() return SVal("tsOffsetY", 0) end,
                           set=function(v) SSet("tsOffsetY", v); TSApply() end },
+                        { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                          get=function() return SVal("tsLevel", "medium") end,
+                          set=function(v) SSet("tsLevel", v) end },
                     },
                 })
                 local cogBtn = CreateFrame("Button", nil, rgn)
@@ -4904,7 +5046,7 @@ initFrame:SetScript("OnEvent", function(self)
             rgn._control = cbDD
             rgn._lastInline = nil
         end
-        -- Cog for position offset X/Y
+        -- Cog for position offset X/Y | Frame level dropdown
         do
             local rgn = defShowRow._rightRegion
             local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -4916,6 +5058,9 @@ initFrame:SetScript("OnEvent", function(self)
                     { type="slider", label="Offset Y", min=-50, max=50, step=1,
                       get=function() return SVal("defOffsetY", 0) end,
                       set=function(v) SSet("defOffsetY", v) end },
+                    { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("defLevel", "medium") end,
+                      set=function(v) SSet("defLevel", v) end },
                 },
             })
             local cogBtn = CreateFrame("Button", nil, rgn)
@@ -5128,7 +5273,7 @@ initFrame:SetScript("OnEvent", function(self)
               setValue=function(v) SSet("paGrowDirection", v) end });  y = y - h
         ns._editTargets = ns._editTargets or {}
         ns._editTargets.privateAuras = paRow1
-        -- Cog for position offset X/Y
+        -- Cog for position offset X/Y | Frame level dropdown
         do
             local rgn = paRow1._leftRegion
             local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -5140,6 +5285,9 @@ initFrame:SetScript("OnEvent", function(self)
                     { type="slider", label="Offset Y", min=-50, max=50, step=1,
                       get=function() return SVal("paOffsetY", 0) end,
                       set=function(v) SSet("paOffsetY", v) end },
+                    { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("paLevel", "medium") end,
+                      set=function(v) SSet("paLevel", v) end },
                 },
             })
             local cogBtn = CreateFrame("Button", nil, rgn)
@@ -5296,7 +5444,7 @@ initFrame:SetScript("OnEvent", function(self)
               disabledTooltip="Show Debuffs",
               getValue=function() return SVal("debuffGrowDirection", "RIGHT") end,
               setValue=function(v) SSet("debuffGrowDirection", v) end });  y = y - h
-        -- Cog for debuff offset X/Y
+        -- Cog for debuff offset X/Y | Frame level dropdown
         do
             local rgn = row._leftRegion
             local _, cogShow = EllesmereUI.BuildCogPopup({
@@ -5308,6 +5456,9 @@ initFrame:SetScript("OnEvent", function(self)
                     { type="slider", label="Offset Y", min=-50, max=50, step=1,
                       get=function() return SVal("debuffOffsetY", 0) end,
                       set=function(v) SSet("debuffOffsetY", v) end },
+                   { type="dropdown", label="Frame Level", values=sharedStrataScaleValues, order=sharedStrataScaleOrder,
+                      get=function() return SVal("debuffLevel", "medium") end,
+                      set=function(v) SSet("debuffLevel", v) end },
                 },
             })
             local cogBtn = CreateFrame("Button", nil, rgn)

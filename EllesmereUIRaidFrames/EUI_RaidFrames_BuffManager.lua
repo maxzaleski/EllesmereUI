@@ -105,13 +105,13 @@ local FRAMELVL_VALUES = {
 }
 local FRAMELVL_ORDER = { "behindBorders", "behindText", "medium", "high", "highest" }
 local FRAMELVL_BASE = {
-    behindBorders = 7,   -- below the main border (+8)
-    behindText    = 11,  -- below the name/health text carrier (+12), above borders
-    medium        = 13,  -- ns.LVL_AURA: the original/default band
-    high          = 14,
-    highest       = 15,
+    behindBorders = 7,                -- below the configurable threat/dispel borders (default high = +20)
+    behindText    = 11,               -- below the name/health text carrier, above borders
+    medium        = ns.FRAMELVL.medium,
+    high          = ns.FRAMELVL.high,
+    highest       = ns.FRAMELVL.highest,
 }
-local FRAMELVL_TEXT = 18  -- fixed count/duration text-carrier offset (icon/square)
+
 
 -------------------------------------------------------------------------------
 --  Healer spell database
@@ -855,7 +855,7 @@ function ns.BM_CreateIndicators(button, health, d, PP)
     -- Frame effect border
     local effectBorder = CreateFrame("Frame", nil, button)
     effectBorder:SetAllPoints(button)
-    effectBorder:SetFrameLevel(button:GetFrameLevel() + 11)
+    effectBorder:SetFrameLevel(button:GetFrameLevel() + ns.FRAMELVL.highest)
     effectBorder:Hide()
     if PP then PP.CreateBorder(effectBorder, 0, 1, 0, 1, 2) end
 
@@ -1035,7 +1035,7 @@ local function BM_ApplyIconLevel(fr, ind, baseLvl)
     -- Set each explicitly rather than relying on child-level propagation.
     if fr._cooldown then fr._cooldown:SetFrameLevel(baseLvl + off + 1) end
     if fr._bdr then fr._bdr:SetFrameLevel(baseLvl + off + 1) end
-    if fr._textCarrier then fr._textCarrier:SetFrameLevel(baseLvl + FRAMELVL_TEXT) end
+    if fr._textCarrier then fr._textCarrier:SetFrameLevel(baseLvl + off + 2) end
 end
 
 -- Bars have no border/text sub-frames, so only the base applies. Bars default
@@ -2370,7 +2370,7 @@ function ns.BM_CreatePreviewIndicators(f, health, PP)
 
     local effectBorder = CreateFrame("Frame", nil, f)
     effectBorder:SetAllPoints(f)
-    effectBorder:SetFrameLevel(f:GetFrameLevel() + 11)
+    effectBorder:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL.highest)
     effectBorder:Hide()
     if PP then PP.CreateBorder(effectBorder, 0, 1, 0, 1, 2) end
 

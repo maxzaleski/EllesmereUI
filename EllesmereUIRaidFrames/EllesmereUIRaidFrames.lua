@@ -34,6 +34,15 @@ ns.LVL_AURA   = 13   -- base level for every aura icon/bar (children at +1..+5);
 ns.LVL_RAISE  = 20   -- main border while hovered/targeted (PP container at +1)
 ns.LVL_MARKER = 22   -- raid marker icon (always on top)
 
+-- TODO: remove old scale.
+ns.FRAMELVL = {
+    lowest  = 12,  -- offset level for name/health text
+    low     = 13,  -- offset level for indicators (except Raid Markers at "highest")
+    medium  = 14, -- offset level for every aura icon/bar
+    high    = 20, -- offset level for main border while hovered/targeted (PP container at +1)
+    highest = 22, -- highest priority, sits above main frame border
+}
+
 -------------------------------------------------------------------------------
 --  Chat-strata host: lowers a frame onto the chat frame's strata, one level
 --  above it, so its contents render on the SAME layer as chat (just above chat
@@ -445,6 +454,7 @@ local defaults = {
         nameMaxLength    = 15,  -- max characters shown for unit names (0 = off / no cap)
         nameColorMode    = "custom",  -- "class", "accent", "custom"
         nameCustomColor  = { r = 1, g = 1, b = 1 },
+        nameLevel        = "lowest",
         namePosition     = "topleft", -- "topleft", "top", "topright", "left", "center", "right", "bottomleft", "bottom"
         nameOffsetX      = 0,
         nameOffsetY      = 0,
@@ -452,6 +462,7 @@ local defaults = {
         healthTextColorMode   = "custom",  -- "class", "accent", "custom"
         healthTextCustomColor = { r = 1, g = 1, b = 1 },
         healthTextSize   = 9,
+        healthTextLevel    = "lowest",
         healthTextPosition = "center",
         healthTextOffsetX  = 0,
         healthTextOffsetY  = 0,
@@ -505,6 +516,7 @@ local defaults = {
         -- Indicators
         roleIconStyle    = "modern",  -- none/modern/modernCircle/styled/classicCircle/classic/blizzDefault/blizzLight
         roleIconSize     = 13,
+        roleIconLevel    = "low",
         roleIconPosition = "bottomleft",  -- topleft/top/topright/left/center/right/bottomleft/bottom/bottomright
         roleIconOffsetX  = 0,
         roleIconOffsetY  = 0,
@@ -512,19 +524,25 @@ local defaults = {
         showRoleForTank    = true,
         showRoleForHealer  = true,
         showRoleForDPS     = false,
-        showRaidMarker   = true,
-        raidMarkerSize   = 16,
+        showRaidMarker     = true,
+        raidMarkerSize     = 16,
+        raidMarkerLevel    = "highest",
         raidMarkerPosition = "center",  -- "topleft", "top", "topright", "left", "center", "right", "bottomleft", "bottom"
         raidMarkerOffsetX  = 0,
         raidMarkerOffsetY  = 0,
-        showReadyCheck   = true,
-        showSummonPending = true,
-        threatBorderSize = 2,    -- aggro warning border thickness; 0 = off
-        showLeaderIcon   = false,
+        readyCheckLevel    = "low",
+        showReadyCheck     = true,
+        summonPendingLevel = "low",
+        showSummonPending  = true,
+        threatBorderSize   = 2,    -- aggro warning border thickness; 0 = off
+        threatBorderLevel  = "high",
+        showLeaderIcon     = false,
+        leaderIconSize     = 14,
+        leaderIconLevel    = "low",
         leaderIconPosition = "top",
-        leaderIconSize   = 14,
         leaderIconOffsetX  = 0,
         leaderIconOffsetY  = 0,
+        statusTextLevel    = "low",
         statusTextPosition = "center",
         statusTextOffsetX  = 0,
         statusTextOffsetY  = 0,
@@ -552,12 +570,13 @@ local defaults = {
 
         -- Dispels
         dispelBorderSize        = 0,
+        dispelBorderLevel       = "high",
         dispelOverlay           = "fill",   -- "none", "fill", "full", "gradient"
         dispelOverlayOpacity    = 100,
         dispelGradientDirection = "tb",  -- "tb", "bt", "lr", "rl"
         dispelShowAll           = true,   -- true = highlight any dispellable debuff; false = only player-dispellable
         dispelOverlayPosition   = 0,      -- 0=Top, 1=Bottom, 2=Left (aura-organization-type for private aura dispel container)
-        showDispelIcons    = false,
+        showDispelIcons         = false,
         dispelIconPosition = "right",
         dispelIconOffsetX  = 0,
         dispelIconOffsetY  = 0,
@@ -579,6 +598,7 @@ local defaults = {
         paSize           = 20,
         paShowCountdown  = false,
         paHideTooltip    = true,
+        paLevel          = "medium",
         paPosition       = "center",
         paOffsetX        = 0,
         paOffsetY        = 0,
@@ -591,6 +611,7 @@ local defaults = {
         -- Defensives & Externals
         showDefensives   = true,
         showExternals    = true,
+        defLevel         = "medium",
         defPosition      = "center",
         defOffsetX       = 0,
         defOffsetY       = 0,
@@ -633,6 +654,7 @@ local defaults = {
         debuffSize       = 18,
         debuffCap        = 3,
         debuffHideTooltips = true,
+        debuffLevel      = "medium",
         debuffPosition   = "bottomright",
         debuffOffsetX    = 0,
         debuffOffsetY    = 0,
@@ -661,6 +683,7 @@ local defaults = {
         tsEnabled   = true,   -- legacy boolean; superseded by tsMode (kept harmless)
         tsMode      = "whenHealing",  -- never | whenHealing | always
         tsIconSize  = 24,
+        tsLevel     = "medium",
         tsPosition  = "center",
         tsGrowDirection = "CENTER",
         tsOffsetX   = 0,
@@ -2510,7 +2533,7 @@ local function StyleButton(button)
     -- Threat border
     local threatFrame = CreateFrame("Frame", nil, button)
     threatFrame:SetAllPoints(button)
-    threatFrame:SetFrameLevel(button:GetFrameLevel() + 10)
+    threatFrame:SetFrameLevel(button:GetFrameLevel() + ns.FRAMELVL[s.threatBorderLevel])
     threatFrame:Hide()
     d.threatFrame = threatFrame
     if PP then PP.CreateBorder(threatFrame, 1, 0, 0, 1, 2) end
@@ -2518,7 +2541,7 @@ local function StyleButton(button)
     -- Dispel border (health bar only, not power bar)
     local dispelFrame = CreateFrame("Frame", nil, button)
     dispelFrame:SetAllPoints(health)
-    dispelFrame:SetFrameLevel(button:GetFrameLevel() + 10)
+    dispelFrame:SetFrameLevel(button:GetFrameLevel() + ns.FRAMELVL[s.dispelBorderLevel])
     dispelFrame:Hide()
     d.dispelFrame = dispelFrame
     if PP then PP.CreateBorder(dispelFrame, 0.2, 0.6, 1, 1, 2) end
@@ -2545,6 +2568,13 @@ local function StyleButton(button)
     end
     d.ApplyHoverOverlay = ApplyHoverOverlay
 
+    local function UpdateBordersLevel()
+        local pl = button:GetFrameLevel()
+        if d.threatFrame then d.threatFrame:SetFrameLevel(pl + ns.FRAMELVL[s.threatBorderLevel]) end
+        if d.dispelFrame then d.dispelFrame:SetFrameLevel(pl + ns.FRAMELVL[s.dispelBorderLevel]) end
+    end
+    UpdateBordersLevel()
+    d.UpdateBordersLevel = UpdateBordersLevel
 
     -- Dispel overlay (fill / full / gradient)
     -- Texture on health bar at ARTWORK sublevel 3: above fill (0) AND above the
@@ -2666,20 +2696,26 @@ local function StyleButton(button)
 
     -- Text carrier: name + health text sit ABOVE the base/threat/dispel borders
     -- (+8/+10/+11) and the BM frame-border effect (+11) so they stay readable,
-    -- but BELOW the aura layer (ns.LVL_AURA = +13) so debuffs/buffs draw over them.
+    -- but BELOW the indicator (+13) and the aura (+14) layers, as to allow these to
+    -- draw over them (assuming the user does not manually override these).
+
     local textCarrier = CreateFrame("Frame", nil, button)
     textCarrier:SetAllPoints(health)
-    textCarrier:SetFrameLevel(button:GetFrameLevel() + 12)
+
+    local nameTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    d.nameTextCarrier = nameTextCarrier
+    local healthTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    d.healthTextCarrier = healthTextCarrier
 
     -- Name text
-    local nameFS = textCarrier:CreateFontString(nil, "OVERLAY")
+    local nameFS = nameTextCarrier:CreateFontString(nil, "OVERLAY")
     ApplyFont(nameFS, s.nameSize or 10)
     nameFS:SetJustifyH("CENTER")
     nameFS:SetWordWrap(false)
     d.nameText = nameFS
 
     -- Health deficit text
-    local healthFS = textCarrier:CreateFontString(nil, "OVERLAY")
+    local healthFS = healthTextCarrier:CreateFontString(nil, "OVERLAY")
     ApplyFont(healthFS, s.healthTextSize or 9)
     healthFS:SetTextColor(1, 1, 1, 0.9)
     d.healthText = healthFS
@@ -2727,7 +2763,10 @@ local function StyleButton(button)
     d.AnchorHealthText = AnchorHealthText
 
     -- Status text (DEAD / OFFLINE / AFK -- always shown, own position/size/color)
-    local statusFS = health:CreateFontString(nil, "OVERLAY")
+    local statusTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    d.statusTextCarrier = statusTextCarrier
+
+    local statusFS = statusTextCarrier:CreateFontString(nil, "OVERLAY")
     local stc = s.statusTextColor or { r = 1, g = 1, b = 1 }
     ApplyFont(statusFS, s.statusTextSize or 14)
     statusFS:SetJustifyH("CENTER")
@@ -2763,10 +2802,19 @@ local function StyleButton(button)
     AnchorStatusText()
     d.AnchorStatusText = AnchorStatusText
 
+    local function UpdateTextCarriersLevel()
+        local pl = button:GetFrameLevel()
+        nameTextCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.nameLevel])
+        healthTextCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.healthTextLevel])
+        statusTextCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.statusTextLevel])
+    end
+    UpdateTextCarriersLevel()
+    d.UpdateTextCarriersLevel = UpdateTextCarriersLevel
+
     -- Role icon (carrier frame above power bar + its border so icon renders on top)
     local roleCarrier = CreateFrame("Frame", nil, button)
     roleCarrier:SetAllPoints(health)
-    roleCarrier:SetFrameLevel(button:GetFrameLevel() + 5)
+    d.roleCarrier = roleCarrier
     local roleIcon = roleCarrier:CreateTexture(nil, "OVERLAY")
     local riSz = PixelSnap(s.roleIconSize or 14)
     roleIcon:SetSize(riSz, riSz)
@@ -2785,22 +2833,14 @@ local function StyleButton(button)
     AnchorRoleIcon()
     d.AnchorRoleIcon = AnchorRoleIcon
 
-    -- Marker carrier: above the frame border (including the hover/target raise
-    -- at +12/+13) so the raid marker renders on top of the border instead of
-    -- being clipped behind it.
+    -- Marker carrier: raid marker host, above the frame border.
     local markerCarrier = CreateFrame("Frame", nil, button)
     markerCarrier:SetAllPoints(health)
-    markerCarrier:SetFrameLevel(button:GetFrameLevel() + ns.LVL_MARKER)
+    d.markerCarrier = markerCarrier
 
-    -- Leader/assistant icon. Hosted on its own frame lowered to the chat frame's
-    -- strata (one level above chat) so it renders on the same layer as chat,
-    -- above chat on that layer -- NOT on the marker carrier, whose high level
-    -- keeps the raid marker always on top. Parented to the button so it tracks
-    -- the frame; SetAllPoints(health) so the icon still anchors to the health
-    -- bar as before. Strata/level are re-asserted on reload (chat-relative).
+    -- Leader/assistant icon host (level driven by leaderIconLevel).
     d.leaderHost = CreateFrame("Frame", nil, button)
     d.leaderHost:SetAllPoints(health)
-    ns.ApplyChatStrata(d.leaderHost)
 
     local leaderIcon = d.leaderHost:CreateTexture(nil, "OVERLAY")
     local liSz = PixelSnap(s.leaderIconSize or 14)
@@ -2847,11 +2887,45 @@ local function StyleButton(button)
     d.AnchorRaidMarker = AnchorRaidMarker
 
     -- Ready check icon
-    local readyCheck = health:CreateTexture(nil, "OVERLAY", nil, 3)
+    local readyCheckCarrier = CreateFrame("Frame", nil, button)
+    readyCheckCarrier:SetAllPoints(health)
+    d.readyCheckCarrier = readyCheckCarrier
+
+    local readyCheck = readyCheckCarrier:CreateTexture(nil, "OVERLAY", nil, 3)
     readyCheck:SetSize(18, 18)
     readyCheck:SetPoint("CENTER", health, "CENTER", 0, 0)
     readyCheck:Hide()
     d.readyCheck = readyCheck
+
+    -- Summon pending icon (separate carrier so its level is independent of readyCheck)
+    local summonPendingCarrier = CreateFrame("Frame", nil, button)
+    summonPendingCarrier:SetAllPoints(health)
+    d.summonPendingCarrier = summonPendingCarrier
+
+    local summonPending = summonPendingCarrier:CreateTexture(nil, "OVERLAY", nil, 3)
+    summonPending:SetSize(20, 20)
+    summonPending:SetPoint("CENTER", health, "CENTER", 0, 0)
+    summonPending:Hide()
+    d.summonPending = summonPending
+
+    local function UpdateIndicatorsLevel()
+        local pl = button:GetFrameLevel()
+        roleCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.roleIconLevel])
+        markerCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.raidMarkerLevel])
+        readyCheckCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.readyCheckLevel])
+        summonPendingCarrier:SetFrameLevel(pl + ns.FRAMELVL[s.summonPendingLevel])
+        d.leaderHost:SetFrameLevel(pl + ns.FRAMELVL[s.leaderIconLevel])
+    end
+    UpdateIndicatorsLevel()
+    d.UpdateIndicatorsLevel = UpdateIndicatorsLevel
+
+    local function UpdateBordersLevel()
+        local pl = button:GetFrameLevel()
+        if d.threatFrame then d.threatFrame:SetFrameLevel(pl + ns.FRAMELVL[s.threatBorderLevel]) end
+        if d.dispelFrame then d.dispelFrame:SetFrameLevel(pl + ns.FRAMELVL[s.dispelBorderLevel]) end
+    end
+    UpdateBordersLevel()
+    d.UpdateBordersLevel = UpdateBordersLevel
 
     -- Debuff icons (pre-created, anchored dynamically)
     d.debuffIcons = {}
@@ -2889,6 +2963,7 @@ local function StyleButton(button)
         local dbDurCarrier = CreateFrame("Frame", nil, icon)
         dbDurCarrier:SetAllPoints()
         dbDurCarrier:SetFrameLevel(dbTextLevel)
+        icon._durCarrier = dbDurCarrier
 
         -- Stack count text
         local dbCountFS = dbDurCarrier:CreateFontString(nil, "OVERLAY")
@@ -2993,6 +3068,7 @@ local function StyleButton(button)
         local defDurCarrier = CreateFrame("Frame", nil, defIcon)
         defDurCarrier:SetAllPoints()
         defDurCarrier:SetFrameLevel(defCD:GetFrameLevel() + 2)
+        defIcon._durCarrier = defDurCarrier
         local defDurFontPath = (EllesmereUI.GetFontPath and EllesmereUI.GetFontPath("raidFrames")) or "Fonts\\FRIZQT__.TTF"
         local defDurFS = defDurCarrier:CreateFontString(nil, "OVERLAY")
         defDurFS:SetPoint("CENTER", defIcon, "CENTER", 0, 0)
@@ -3061,6 +3137,37 @@ local function StyleButton(button)
     end
     AnchorDefensives()
     d.AnchorDefensives = AnchorDefensives
+
+    local function UpdateAurasLevel()
+        local pl = button:GetFrameLevel()
+        local debuffOff = ns.FRAMELVL[s.debuffLevel]
+        local defOff    = ns.FRAMELVL[s.defLevel]
+        local paOff     = ns.FRAMELVL[s.paLevel]
+
+        for _, icon in ipairs(d.debuffIcons) do
+            icon:SetFrameLevel(pl + debuffOff)
+            if icon._borderFrame then icon._borderFrame:SetFrameLevel(pl + debuffOff + 1) end
+            if icon._durCarrier  then icon._durCarrier:SetFrameLevel(pl + debuffOff + 2) end
+        end
+
+        for _, icon in ipairs(d.defIcons) do
+            icon:SetFrameLevel(pl + defOff)
+            if icon._borderFrame then icon._borderFrame:SetFrameLevel(pl + defOff + 1) end
+            if icon._durCarrier  then icon._durCarrier:SetFrameLevel(pl + defOff + 2) end
+        end
+
+        if d.privateAuraFrames then
+            for _, paFrame in ipairs(d.privateAuraFrames) do
+                paFrame:SetFrameLevel(pl + paOff)
+            end
+        end
+
+        if d.dispelContainer then
+            d.dispelContainer:SetFrameLevel(pl + paOff)
+        end
+    end
+    UpdateAurasLevel()
+    d.UpdateAurasLevel = UpdateAurasLevel
 
     -- Anchor name text based on position setting
     -- Uses two-point anchoring (LEFT+RIGHT) for width constraint, with
@@ -4508,7 +4615,7 @@ local function RegisterPrivateAuraSlots(button, unit)
         paFrame:SetScale(ts)
         paFrame:SetSize(slotSz / ts, slotSz / ts)
         paFrame:SetFrameStrata(fixedStrata)
-        paFrame:SetFrameLevel(button:GetFrameLevel() + ns.LVL_AURA)
+        paFrame:SetFrameLevel(button:GetFrameLevel() + ns.FRAMELVL[s.paLevel])
         paFrame:ClearAllPoints()
 
         if i == 1 then
@@ -4800,62 +4907,65 @@ end
 -------------------------------------------------------------------------------
 --  Ready check handling
 -------------------------------------------------------------------------------
-local readyCheckActive = false
+local UpdateReadyCheck  -- forward-declared; assigned inside do..end below
+do
+    local readyCheckActive = false
 
--- The d.readyCheck texture is shared between the ready-check and incoming-summon
--- indicators (they almost never overlap). Ready check takes priority while a check
--- is active; otherwise the summon status is shown.
-local function UpdateReadyCheck(button, unit)
-    local d = GetFFD(button)
-    local tex = d.readyCheck
-    if not tex then return end
+    local function ApplyReadyCheck(button, unit)
+        local d = GetFFD(button)
+        local tex = d.readyCheck
+        if not tex then return false end
+        if db.profile.showReadyCheck and readyCheckActive then
+            local status = GetReadyCheckStatus(unit)
+            if status == "ready" then
+                tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
+                tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+                tex:Show(); return true
+            elseif status == "notready" then
+                tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
+                tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
+                tex:Show(); return true
+            elseif status == "waiting" then
+                tex:SetSize(18, 18); tex:SetTexCoord(0, 1, 0, 1)
+                tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
+                tex:Show(); return true
+            end
+        end
+        tex:Hide()
+        return false
+    end
 
-    -- Ready check (priority)
-    if db.profile.showReadyCheck and readyCheckActive then
-        local status = GetReadyCheckStatus(unit)
-        if status == "ready" then
-            tex:SetSize(18, 18)
-            tex:SetTexCoord(0, 1, 0, 1)
-            tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-            tex:Show()
-            return
-        elseif status == "notready" then
-            tex:SetSize(18, 18)
-            tex:SetTexCoord(0, 1, 0, 1)
-            tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
-            tex:Show()
-            return
-        elseif status == "waiting" then
-            tex:SetSize(18, 18)
-            tex:SetTexCoord(0, 1, 0, 1)
-            tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
-            tex:Show()
-            return
+    local function ApplySummonPending(button, unit)
+        local d = GetFFD(button)
+        local tex = d.summonPending
+        if not tex then return end
+        if db.profile.showSummonPending and unit and C_IncomingSummon.HasIncomingSummon(unit) then
+            local sStatus = C_IncomingSummon.IncomingSummonStatus(unit)
+            if sStatus == SUMMON_STATUS_PENDING then
+                tex:SetAtlas("RaidFrame-Icon-SummonPending"); tex:Show(); return
+            elseif sStatus == SUMMON_STATUS_ACCEPTED then
+                tex:SetAtlas("RaidFrame-Icon-SummonAccepted"); tex:Show(); return
+            elseif sStatus == SUMMON_STATUS_DECLINED then
+                tex:SetAtlas("RaidFrame-Icon-SummonDeclined"); tex:Show(); return
+            end
+        end
+        tex:Hide()
+    end
+
+    UpdateReadyCheck = function(button, unit)
+        local rcShown = ApplyReadyCheck(button, unit)
+        local d = GetFFD(button)
+        if rcShown then
+            if d.summonPending then d.summonPending:Hide() end
+        else
+            ApplySummonPending(button, unit)
         end
     end
 
-    -- Incoming summon
-    if db.profile.showSummonPending and unit and C_IncomingSummon.HasIncomingSummon(unit) then
-        local sStatus = C_IncomingSummon.IncomingSummonStatus(unit)
-        if sStatus == SUMMON_STATUS_PENDING then
-            tex:SetSize(20, 20)
-            tex:SetAtlas("RaidFrame-Icon-SummonPending")
-            tex:Show()
-            return
-        elseif sStatus == SUMMON_STATUS_ACCEPTED then
-            tex:SetSize(20, 20)
-            tex:SetAtlas("RaidFrame-Icon-SummonAccepted")
-            tex:Show()
-            return
-        elseif sStatus == SUMMON_STATUS_DECLINED then
-            tex:SetSize(20, 20)
-            tex:SetAtlas("RaidFrame-Icon-SummonDeclined")
-            tex:Show()
-            return
-        end
-    end
-
-    tex:Hide()
+    -- Accessors so event handlers outside this block can read/write the flag
+    -- without the variable bleeding into the outer local budget.
+    ns._setReadyCheckActive = function(v) readyCheckActive = v end
+    ns._getReadyCheckActive = function()  return readyCheckActive end
 end
 
 -------------------------------------------------------------------------------
@@ -7144,6 +7254,7 @@ local function ReloadFrames()
             d.statusText:SetTextColor(stc.r, stc.g, stc.b)
             if d.AnchorStatusText then d.AnchorStatusText() end
         end
+        if d.UpdateTextCarriersLevel then d.UpdateTextCarriersLevel() end
 
         -- Role icon size + position
         if d.roleIcon then
@@ -7159,8 +7270,6 @@ local function ReloadFrames()
             d.leaderIcon:ClearAllPoints()
             local liPos = (s.leaderIconPosition or "top"):upper()
             d.leaderIcon:SetPoint(liPos, d.health, liPos, s.leaderIconOffsetX or 0, s.leaderIconOffsetY or 0)
-            -- Keep the leader-icon host on the chat frame's current strata/level
-            if d.leaderHost then ns.ApplyChatStrata(d.leaderHost) end
         end
 
         -- Raid marker size + position
@@ -7170,8 +7279,12 @@ local function ReloadFrames()
             if d.AnchorRaidMarker then d.AnchorRaidMarker() end
         end
 
+        if d.UpdateIndicatorsLevel then d.UpdateIndicatorsLevel() end
+        if d.UpdateBordersLevel    then d.UpdateBordersLevel()    end
+
         -- Border
         if d.UpdateBorder then d.UpdateBorder() end
+        if d.UpdateBordersLevel    then d.UpdateBordersLevel()    end
 
         -- Debuff size + position
         if d.debuffIcons then
@@ -7198,6 +7311,8 @@ local function ReloadFrames()
                 paFrame:SetSize(s.debuffSize or 18, s.debuffSize or 18)
             end
         end
+
+        if d.UpdateAurasLevel then d.UpdateAurasLevel() end
 
         -- Buff manager indicators
         if d.bmIconPool and d.health and ns.BM_AnchorIndicators then
@@ -8235,7 +8350,7 @@ local function OnEvent(self, event, arg1, ...)
         local t0 = ns.ProfBegin("UpdateTargetBorders"); ns._UpdateTargetBorders(); ns.ProfEnd("UpdateTargetBorders", t0)
     elseif event == "READY_CHECK" then
         local t0 = ns.ProfBegin("ReadyCheck:START")
-        readyCheckActive = true
+        ns._setReadyCheckActive(true)
         for _, btn in ipairs(allButtons) do
             local u = btn:GetAttribute("unit")
             if u and btn:IsVisible() then UpdateReadyCheck(btn, u) end
@@ -8249,9 +8364,9 @@ local function OnEvent(self, event, arg1, ...)
         local btn = unitToButton[arg1] or ns._partyUnitToButton[arg1]
         if btn then UpdateReadyCheck(btn, arg1) end
     elseif event == "READY_CHECK_FINISHED" then
-        readyCheckActive = false
+        ns._setReadyCheckActive(false)
         C_Timer.After(5, function()
-            if not readyCheckActive then
+            if not ns._getReadyCheckActive() then
                 -- Re-evaluate rather than force-hide: a unit may have an incoming
                 -- summon active that shares the same texture.
                 for _, btn in ipairs(allButtons) do
@@ -8424,7 +8539,8 @@ do
             "targetBorderEnabled", "targetBorderSize", "targetBorderColor", "targetBorderAlpha", "threatBorderSize",
         },
         dispels = {
-            "dispelBorderSize", "dispelOverlay", "dispelOverlayOpacity", "dispelGradientDirection", "dispelShowAll",
+            "dispelBorderSize", "dispelBorderLevel", "dispelOverlay", "dispelOverlayOpacity",
+            "dispelGradientDirection", "dispelShowAll", "dispelOverlayPosition",
             "showDispelIcons", "dispelIconPosition", "dispelIconOffsetX", "dispelIconOffsetY",
             "dispelColorMagic", "dispelColorCurse", "dispelColorDisease",
             "dispelColorPoison", "dispelColorBleed",
@@ -9112,6 +9228,7 @@ ns.ReloadPartyFrames = function()
             d.statusText:SetTextColor(stc.r, stc.g, stc.b)
             if d.AnchorStatusText then d.AnchorStatusText() end
         end
+        if d.UpdateTextCarriersLevel then d.UpdateTextCarriersLevel() end
 
         -- Role icon
         if d.roleIcon then
@@ -9127,8 +9244,6 @@ ns.ReloadPartyFrames = function()
             d.leaderIcon:ClearAllPoints()
             local liPos = (raw.leaderIconPosition or "top"):upper()
             d.leaderIcon:SetPoint(liPos, d.health, liPos, pp.leaderIconOffsetX or 0, pp.leaderIconOffsetY or 0)
-            -- Keep the leader-icon host on the chat frame's current strata/level
-            if d.leaderHost then ns.ApplyChatStrata(d.leaderHost) end
         end
 
         -- Raid marker
@@ -9138,8 +9253,12 @@ ns.ReloadPartyFrames = function()
             if d.AnchorRaidMarker then d.AnchorRaidMarker() end
         end
 
+        if d.UpdateIndicatorsLevel then d.UpdateIndicatorsLevel() end
+        if d.UpdateBordersLevel    then d.UpdateBordersLevel()    end
+
         -- Border
         if d.UpdateBorder then d.UpdateBorder() end
+        if d.UpdateBordersLevel    then d.UpdateBordersLevel()    end
 
         -- Debuff icons
         if d.debuffIcons then
@@ -9166,6 +9285,8 @@ ns.ReloadPartyFrames = function()
                 paFrame:SetSize(pp.debuffSize or 18, pp.debuffSize or 18)
             end
         end
+
+        if d.UpdateAurasLevel then d.UpdateAurasLevel() end
 
         -- Buff manager indicators (pass the scaled proxy: BM picks the party
         -- indicator scale by recognizing this exact table)
@@ -10584,7 +10705,7 @@ local function CreatePreviewFrame(index)
     -- Threat border (aggro indicator)
     local threatFrame = CreateFrame("Frame", nil, f)
     threatFrame:SetAllPoints(f)
-    threatFrame:SetFrameLevel(f:GetFrameLevel() + 10)
+    threatFrame:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.threatBorderLevel])
     threatFrame:Hide()
     if PP then PP.CreateBorder(threatFrame, 1, 0, 0, 1, 2) end
 
@@ -10604,7 +10725,7 @@ local function CreatePreviewFrame(index)
     -- Dispel border
     local dispelBdrFrame = CreateFrame("Frame", nil, f)
     dispelBdrFrame:SetAllPoints(health)
-    dispelBdrFrame:SetFrameLevel(f:GetFrameLevel() + 10)
+    dispelBdrFrame:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.dispelBorderLevel])
     dispelBdrFrame:Hide()
     if PP then PP.CreateBorder(dispelBdrFrame, 0.2, 0.6, 1, 1, 2) end
 
@@ -10624,11 +10745,11 @@ local function CreatePreviewFrame(index)
     dispelIconTex:SetAllPoints()
     dispelIconTex:SetTexture("Interface\\Buttons\\WHITE8X8")
 
-    -- Marker carrier: above the frame border (incl. hover/target raise) so the
-    -- leader icon and raid marker render on top of it (mirrors real frames).
+    -- Marker carrier: raid marker host.
     local markerCarrier = CreateFrame("Frame", nil, f)
     markerCarrier:SetAllPoints(health)
-    markerCarrier:SetFrameLevel(f:GetFrameLevel() + ns.LVL_MARKER)
+    markerCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.raidMarkerLevel])
+    f._markerCarrier = markerCarrier
 
     -- Raid marker (on marker carrier, above the border)
     local raidMarker = markerCarrier:CreateTexture(nil, "OVERLAY", nil, 2)
@@ -10637,48 +10758,84 @@ local function CreatePreviewFrame(index)
     raidMarker:Hide()
 
     -- Ready check icon
-    local readyCheck = health:CreateTexture(nil, "OVERLAY", nil, 3)
+    local readyCheckCarrier = CreateFrame("Frame", nil, f)
+    readyCheckCarrier:SetAllPoints(health)
+    readyCheckCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.readyCheckLevel])
+    f._readyCheckCarrier = readyCheckCarrier
+
+    local readyCheck = readyCheckCarrier:CreateTexture(nil, "OVERLAY", nil, 3)
     readyCheck:SetSize(18, 18)
     readyCheck:SetPoint("CENTER", health, "CENTER", 0, 0)
     readyCheck:Hide()
 
-    -- Text carrier: above borders (+8/+10/+11), below the aura layer (+13).
+    -- Summon pending icon
+    local summonPendingCarrier = CreateFrame("Frame", nil, f)
+    summonPendingCarrier:SetAllPoints(health)
+    summonPendingCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.summonPendingLevel])
+    f._summonPendingCarrier = summonPendingCarrier
+
+    local summonPending = summonPendingCarrier:CreateTexture(nil, "OVERLAY", nil, 3)
+    summonPending:SetSize(20, 20)
+    summonPending:SetPoint("CENTER", health, "CENTER", 0, 0)
+    summonPending:Hide()
+
+    -- Text carrier: name + health text sit ABOVE the base/threat/dispel borders
+    -- (+8/+10/+11) and the BM frame-border effect (+11) so they stay readable,
+    -- but BELOW the indicator (+13) and the aura (+14) layers, as to allow these to
+    -- draw over them (assuming the user does not manually override these).
+
     local textCarrier = CreateFrame("Frame", nil, f)
     textCarrier:SetAllPoints(health)
-    textCarrier:SetFrameLevel(f:GetFrameLevel() + 12)
 
-    -- Name text (anchoring done by ApplyPreviewData on every refresh)
-    local nameFS = textCarrier:CreateFontString(nil, "OVERLAY")
+    local nameTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    nameTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.nameLevel])
+    f._nameTextCarrier = nameTextCarrier
+
+    local healthTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    healthTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.healthTextLevel])
+    f._healthTextCarrier = healthTextCarrier
+
+    -- Name text
+    local nameFS = nameTextCarrier:CreateFontString(nil, "OVERLAY")
     ApplyFont(nameFS, s.nameSize or 10)
     nameFS:SetJustifyH("CENTER")
     nameFS:SetWordWrap(false)
     nameFS:SetPoint("CENTER", health, "CENTER", 0, 0)
 
-    -- Health text
-    local healthFS = textCarrier:CreateFontString(nil, "OVERLAY")
+    -- Health deficit text
+    local healthFS = healthTextCarrier:CreateFontString(nil, "OVERLAY")
     ApplyFont(healthFS, s.healthTextSize or 9)
     healthFS:SetJustifyH("CENTER")
     healthFS:SetPoint("CENTER", health, "CENTER", 0, 0)
     healthFS:SetTextColor(1, 1, 1, 0.9)
 
+    local statusTextCarrier = CreateFrame("Frame", nil, textCarrier)
+    statusTextCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.statusTextLevel])
+    f._statusTextCarrier = statusTextCarrier
+
     -- Status text (DEAD / OFFLINE / AFK)
-    local statusFS = textCarrier:CreateFontString(nil, "OVERLAY")
+    local statusFS = statusTextCarrier:CreateFontString(nil, "OVERLAY")
     local pvStc = s.statusTextColor or { r = 1, g = 1, b = 1 }
     ApplyFont(statusFS, s.statusTextSize or 14)
     statusFS:SetJustifyH("CENTER")
     statusFS:SetTextColor(pvStc.r, pvStc.g, pvStc.b)
     statusFS:Hide()
 
-    -- Role icon (carrier frame above power bar + its border)
+    -- Role icon carrier
     local roleCarrier = CreateFrame("Frame", nil, f)
     roleCarrier:SetAllPoints(health)
-    roleCarrier:SetFrameLevel(f:GetFrameLevel() + 5)
+    roleCarrier:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.roleIconLevel])
+    f._roleCarrier = roleCarrier
     local roleIcon = roleCarrier:CreateTexture(nil, "OVERLAY")
     local riSz = PixelSnap(s.roleIconSize or 14)
     roleIcon:SetSize(riSz, riSz)
 
-    -- Leader icon (on marker carrier, above the border)
-    local leaderIcon = markerCarrier:CreateTexture(nil, "OVERLAY")
+    -- Leader icon host
+    local leaderHost = CreateFrame("Frame", nil, f)
+    leaderHost:SetAllPoints(health)
+    leaderHost:SetFrameLevel(f:GetFrameLevel() + ns.FRAMELVL[s.leaderIconLevel])
+    f._leaderHost = leaderHost
+    local leaderIcon = leaderHost:CreateTexture(nil, "OVERLAY")
     local liSz = PixelSnap(s.leaderIconSize or 14)
     leaderIcon:SetSize(liSz, liSz)
     local liPos = (s.leaderIconPosition or "top"):upper()
@@ -10713,6 +10870,7 @@ local function CreatePreviewFrame(index)
     f._dispelIconTex = dispelIconTex
     f._raidMarker = raidMarker
     f._readyCheck = readyCheck
+    f._summonPending = summonPending
     f._nameText = nameFS
     f._topNameBar = tnb
     f._topNameBarBg = tnbBg
@@ -10743,6 +10901,7 @@ local function CreatePreviewFrame(index)
         local countCarrier = CreateFrame("Frame", nil, di)
         countCarrier:SetAllPoints()
         countCarrier:SetFrameLevel(math.max(cd:GetFrameLevel() + 2, dbdr:GetFrameLevel() + 1))
+        di._durCarrier = countCarrier
         local fpInit = (EllesmereUI.GetFontPath and EllesmereUI.GetFontPath("raidFrames")) or "Fonts\\FRIZQT__.TTF"
         local countFS = countCarrier:CreateFontString(nil, "OVERLAY")
         countFS:SetPoint("BOTTOMRIGHT", di, "BOTTOMRIGHT", 1, -1)
@@ -11711,40 +11870,40 @@ local function ApplyPreviewData(f, index)
     end
 
     -- Ready check icon
-    if f._readyCheck then
-        local rcStatuses = previewRoles._readyCheck
+    do
         local rcStatuses = previewRoles._readyCheck
         local rcStatus = rcStatuses and rcStatuses[index]
         local isSummon = rcStatus and rcStatus:sub(1, 6) == "summon"
-        local showRC = indVis and rcStatus and (
-            (not isSummon and s.showReadyCheck) or
-            (isSummon and s.showSummonPending)
-        )
-        if showRC then
-            if isSummon then
-                f._readyCheck:SetSize(20, 20)
-            else
-                f._readyCheck:SetSize(18, 18)
-            end
+        local showRC  = indVis and rcStatus and not isSummon and s.showReadyCheck
+        local showSP  = indVis and rcStatus and isSummon and s.showSummonPending
+        if showRC and f._readyCheck then
+            f._readyCheck:SetSize(18, 18)
             if rcStatus == "ready" then
                 f._readyCheck:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
                 f._readyCheck:SetTexCoord(0, 1, 0, 1)
             elseif rcStatus == "notready" then
                 f._readyCheck:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
                 f._readyCheck:SetTexCoord(0, 1, 0, 1)
-            elseif rcStatus == "pending" then
+            else
                 f._readyCheck:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
                 f._readyCheck:SetTexCoord(0, 1, 0, 1)
-            elseif rcStatus == "summon_pending" then
-                f._readyCheck:SetAtlas("RaidFrame-Icon-SummonPending")
-            elseif rcStatus == "summon_accepted" then
-                f._readyCheck:SetAtlas("RaidFrame-Icon-SummonAccepted")
-            elseif rcStatus == "summon_declined" then
-                f._readyCheck:SetAtlas("RaidFrame-Icon-SummonDeclined")
             end
             f._readyCheck:Show()
-        else
+        elseif f._readyCheck then
             f._readyCheck:Hide()
+        end
+        if showSP and f._summonPending then
+            f._summonPending:SetSize(20, 20)
+            if rcStatus == "summon_pending" then
+                f._summonPending:SetAtlas("RaidFrame-Icon-SummonPending")
+            elseif rcStatus == "summon_accepted" then
+                f._summonPending:SetAtlas("RaidFrame-Icon-SummonAccepted")
+            else
+                f._summonPending:SetAtlas("RaidFrame-Icon-SummonDeclined")
+            end
+            f._summonPending:Show()
+        elseif f._summonPending then
+            f._summonPending:Hide()
         end
     end
 
@@ -11900,7 +12059,6 @@ local function ApplyPreviewData(f, index)
             f._healthText:SetText("")
         end
     end
-
     -- Status text (DEAD / OFFLINE / AFK)
     if f._statusText then
         local pvStc = s.statusTextColor or { r = 1, g = 1, b = 1 }
@@ -11941,6 +12099,31 @@ local function ApplyPreviewData(f, index)
         else
             f._statusText:Hide()
         end
+    end
+    local fpl = f:GetFrameLevel()
+    if f._nameTextCarrier   then f._nameTextCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.nameLevel])         end
+    if f._healthTextCarrier then f._healthTextCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.healthTextLevel]) end
+    if f._statusTextCarrier then f._statusTextCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.statusTextLevel]) end
+
+    -- Aura icon pool levels
+    local function RelevelAuraPool(pool, baseOff)
+        if not pool then return end
+        for _, icon in ipairs(pool) do
+            icon:SetFrameLevel(fpl + baseOff)
+            if icon._borderFrame then icon._borderFrame:SetFrameLevel(fpl + baseOff + 1) end
+            if icon._durCarrier  then icon._durCarrier:SetFrameLevel(fpl + baseOff + 2) end
+        end
+    end
+    local pvDebuffOff = ns.FRAMELVL[s.debuffLevel]
+    local pvDefOff    = ns.FRAMELVL[s.defLevel]
+    local pvPaOff     = ns.FRAMELVL[s.paLevel]
+    RelevelAuraPool(f._pvDebuffs, pvDebuffOff)
+    RelevelAuraPool(f._pvDefs, pvDefOff)
+    RelevelAuraPool(f._pvPA, pvPaOff)
+    if f._pvDispelDebuff then
+        f._pvDispelDebuff:SetFrameLevel(fpl + pvDebuffOff)
+        if f._pvDispelDebuff._borderFrame then f._pvDispelDebuff._borderFrame:SetFrameLevel(fpl + pvDebuffOff + 1) end
+        if f._pvDispelDebuff._durCarrier  then f._pvDispelDebuff._durCarrier:SetFrameLevel(fpl + pvDebuffOff + 2) end
     end
 
     -- Dead/DC overlay (mirror the live-frame status tint: full-cover bg)
@@ -12015,6 +12198,20 @@ local function ApplyPreviewData(f, index)
     -- Buff manager indicators only shown on the BM page preview, not here
 
     -- Debuff/defensive preview icons managed by PvAuraTicker (cycling system)
+
+    local fpl = f:GetFrameLevel()
+    if f._roleCarrier          then f._roleCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.roleIconLevel])            end
+    if f._markerCarrier        then f._markerCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.raidMarkerLevel])        end
+    if f._readyCheckCarrier    then f._readyCheckCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.readyCheckLevel])    end
+    if f._summonPendingCarrier then f._summonPendingCarrier:SetFrameLevel(fpl + ns.FRAMELVL[s.summonPendingLevel]) end
+    if f._leaderHost           then f._leaderHost:SetFrameLevel(fpl + ns.FRAMELVL[s.leaderIconLevel])           end
+    -- Borders (UpdateBordersLevel equivalent for preview frames)
+    if f._threatFrame    then f._threatFrame:SetFrameLevel(fpl + ns.FRAMELVL[s.threatBorderLevel])    end
+    if f._dispelBdrFrame then f._dispelBdrFrame:SetFrameLevel(fpl + ns.FRAMELVL[s.dispelBorderLevel]) end
+
+    -- Borders (UpdateBordersLevel equivalent for preview frames)
+    if f._threatFrame    then f._threatFrame:SetFrameLevel(fpl + ns.FRAMELVL[s.threatBorderLevel])    end
+    if f._dispelBdrFrame then f._dispelBdrFrame:SetFrameLevel(fpl + ns.FRAMELVL[s.dispelBorderLevel]) end
 
     f:Show()
 end

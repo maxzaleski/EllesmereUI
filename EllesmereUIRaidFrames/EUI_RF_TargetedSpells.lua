@@ -204,6 +204,15 @@ local function StyleIcon(icon)
     local k = raid and 1 or (ns._partyIndicatorScale or 1)
     local sz = Setting(raid, "IconSize", 24) * k
     icon:SetSize(sz, sz)
+    -- Frame level: read from tsLevel/tsRaidLevel setting so the option takes effect.
+    local lvlKey = Setting(raid, "Level", "medium")
+    local parent = icon:GetParent()
+    if parent then
+        icon:SetFrameLevel(parent:GetFrameLevel() + ns.FRAMELVL[lvlKey])
+        if icon._borderFrame then
+            icon._borderFrame:SetFrameLevel(icon:GetFrameLevel() + 1)
+        end
+    end
     if icon._borderFrame then
         local PP = EllesmereUI and (EllesmereUI.PanelPP or EllesmereUI.PP)
         if PP and PP.UpdateBorder then
@@ -216,7 +225,6 @@ end
 local function CreateIcon(btn, raid)
     local icon = CreateFrame("Frame", nil, btn)
     icon._tsRaid = raid or false
-    icon:SetFrameLevel(btn:GetFrameLevel() + 12)
     icon:Hide()
 
     local tex = icon:CreateTexture(nil, "ARTWORK")
